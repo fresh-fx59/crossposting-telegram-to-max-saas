@@ -1,6 +1,10 @@
 # Telegram → Max Crossposting Bot
 
-Automatically forwards messages (text and photos) from a Telegram channel to a Max messenger chat.
+Automatically forwards messages (text and photos) from a Telegram channel to a [Max](https://max.ru) messenger chat.
+
+**Supported content types:** text messages, photos (with captions).
+
+**Requirements:** Python 3.10+
 
 ## Setup
 
@@ -45,3 +49,7 @@ python bot.py
 ```
 
 Post a message in your Telegram channel — it should appear in Max.
+
+## How it works
+
+The bot polls Telegram for channel post updates. When a new post arrives, it downloads the content and forwards it to the Max chat via the [Max Bot API](https://dev.max.ru/). Photos are first uploaded to Max, then sent as image attachments. Other content types (videos, documents, etc.) are currently skipped.

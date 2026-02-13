@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Telegram-to-Max crossposting bot. Automatically forwards messages (text and photos with captions) from a Telegram channel to a Max messenger chat using an event-driven async architecture.
+Telegram-to-Max crossposting bot. Automatically forwards messages (text and photos with captions) from a Telegram channel to a Max messenger chat using an event-driven async architecture. Requires Python 3.10+ (uses `str | None` union syntax).
 
 ## Setup and Run
 
