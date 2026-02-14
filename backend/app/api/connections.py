@@ -233,7 +233,7 @@ async def delete_telegram_connection(
 async def create_connection(
     data: ConnectionCreate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, VerifiedUserOptional],
+    current_user: VerifiedUserOptional,
 ) -> ConnectionResponse:
     """Create a new connection (Telegram channel -> Max chat mapping)."""
 
