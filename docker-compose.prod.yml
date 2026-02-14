@@ -30,7 +30,7 @@ services:
     container_name: crossposter-backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-telegram-crossposting-saas.aiengineerhelper.com}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhook`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.backend.rule=Host(telegram-crossposting-saas.aiengineerhelper.com) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhook`) || PathPrefix(`/health`))"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
     environment:
@@ -70,7 +70,7 @@ services:
     container_name: crossposter-frontend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-telegram-crossposting-saas.aiengineerhelper.com}`)"
+      - "traefik.http.routers.frontend.rule=Host(telegram-crossposting-saas.aiengineerhelper.com)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
