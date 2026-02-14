@@ -327,10 +327,10 @@ async def list_connections(
 @router.get("/{connection_id}", response_model=ConnectionDetailResponse)
 async def get_connection(
     connection_id: int,
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentUser,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ConnectionDetailResponse:
     """Get connection details with post history."""
 
