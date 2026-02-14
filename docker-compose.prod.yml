@@ -13,6 +13,8 @@ services:
       - "--certificatesresolvers.mytlschallenge.acme.tlschallenge=true"
       - "--certificatesresolvers.mytlschallenge.acme.email=${TRAEFIK_ACME_EMAIL:-admin@aiengineerhelper.com}"
       - "--certificatesresolvers.mytlschallenge.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
     ports:
       - "80:80"
       - "443:443"
@@ -30,18 +32,23 @@ services:
     container_name: crossposter-backend
     labels:
       - "traefik.enable=true"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
       - "traefik.http.routers.backend-api.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-api.entrypoints=web"
-      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-api.entrypoints=websecure"
+      - "traefik.http.routers.backend-api.service=backend"
+      - "traefik.http.routers.backend-api.tls.certresolver=mytlschallenge"
       - "traefik.http.routers.backend-auth.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/auth`)"
-      - "traefik.http.routers.backend-auth.entrypoints=web"
-      - "traefik.http.services.backend-auth.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-auth.entrypoints=websecure"
+      - "traefik.http.routers.backend-auth.service=backend"
+      - "traefik.http.routers.backend-auth.tls.certresolver=mytlschallenge"
       - "traefik.http.routers.backend-webhook.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/webhook`)"
-      - "traefik.http.routers.backend-webhook.entrypoints=web"
-      - "traefik.http.services.backend-webhook.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-webhook.entrypoints=websecure"
+      - "traefik.http.routers.backend-webhook.service=backend"
+      - "traefik.http.routers.backend-webhook.tls.certresolver=mytlschallenge"
       - "traefik.http.routers.backend-health.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/health`)"
-      - "traefik.http.routers.backend-health.entrypoints=web"
-      - "traefik.http.services.backend-health.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-health.entrypoints=websecure"
+      - "traefik.http.routers.backend-health.service=backend"
+      - "traefik.http.routers.backend-health.tls.certresolver=mytlschallenge"
     environment:
       - DATABASE_URL=postgresql+asyncpg://crossposter:${POSTGRES_PASSWORD}@postgres:5432/crossposter
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -79,9 +86,11 @@ services:
     container_name: crossposter-frontend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.tls.certresolver=mytlschallenge"
     depends_on:
       - backend
     networks:
