@@ -468,9 +468,9 @@ async def delete_connection(
 @router.post("/{connection_id}/test", response_model=TestConnectionResponse)
 async def test_connection(
     connection_id: int,
-    test_message: str = "Test message from Telegram Crossposter",
     session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentUser,
+    test_message: str = "Test message from Telegram Crossposter",
 ) -> TestConnectionResponse:
     """Test sending a message to Max via the connection."""
 
