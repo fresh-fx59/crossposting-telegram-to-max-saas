@@ -9,7 +9,7 @@ from .models import (
     TelegramConnection,
     User,
 )
-from .session import get_async_session
+from .session import close_db, get_async_session, init_db
 
 __all__ = [
     "Base",
@@ -20,4 +20,6 @@ __all__ = [
     "Post",
     "DailyPostCount",
     "get_async_session",
+    "init_db",
+    "close_db",
 ]
