@@ -14,6 +14,7 @@ from ..schemas.connection import (
     ConnectionCreate,
     ConnectionDetailResponse,
     ConnectionResponse,
+    ConnectionUpdate,
     TelegramConnectionCreate,
     TelegramConnectionResponse,
     TelegramConnectionUpdate,
