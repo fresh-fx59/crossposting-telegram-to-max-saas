@@ -30,9 +30,18 @@ services:
     container_name: crossposter-backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(telegram-crossposting-saas.aiengineerhelper.com) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhook`) || PathPrefix(`/health`))"
-      - "traefik.http.routers.backend.entrypoints=web"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-api.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-api.entrypoints=web"
+      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-auth.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.backend-auth.entrypoints=web"
+      - "traefik.http.services.backend-auth.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-webhook.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/webhook`)"
+      - "traefik.http.routers.backend-webhook.entrypoints=web"
+      - "traefik.http.services.backend-webhook.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-health.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/health`)"
+      - "traefik.http.routers.backend-health.entrypoints=web"
+      - "traefik.http.services.backend-health.loadbalancer.server.port=8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://crossposter:${POSTGRES_PASSWORD}@postgres:5432/crossposter
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -70,7 +79,7 @@ services:
     container_name: crossposter-frontend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(telegram-crossposting-saas.aiengineerhelper.com)"
+      - "traefik.http.routers.frontend.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
