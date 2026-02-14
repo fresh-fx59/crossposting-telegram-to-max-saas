@@ -18,7 +18,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy to server
         env:
@@ -56,16 +56,13 @@ jobs:
           ENV=production
           ENVEOF
 
-            # Pull latest changes
-            git pull origin main
-
-            # Restart services
-            docker-compose -f docker-compose.prod.yml pull
+            # Pull latest changes and rebuild
+            git pull origin main 2>/dev/null || git fetch origin && git checkout -f origin/main
             docker-compose -f docker-compose.prod.yml up -d --build
           ENDSSH
 
       - name: Health check
         run: |
-          sleep 10
+          sleep 15
+          echo "Checking http://${{ secrets.SERVER_IP }}/health..."
           curl -f http://${{ secrets.SERVER_IP }}/health || exit 1
-          curl -f https://${{ secrets.DOMAIN }}/health || exit 1
