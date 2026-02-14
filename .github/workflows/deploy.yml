@@ -1,0 +1,71 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'claude-developer' }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+        run: |
+          # Create .env file on server from secrets
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP << 'ENDSSH'
+            cd ~/apps/crossposting-telegram-to-max-saas
+
+            # Create/update .env file from GitHub secrets
+            cat > .env << 'ENVEOF'
+          DATABASE_URL=postgresql+asyncpg://crossposter:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/crossposter
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          JWT_ALGORITHM=HS256
+          JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          SMTP_FROM_NAME=${{ secrets.SMTP_FROM_NAME }}
+          EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
+          PASSWORD_RESET_TOKEN_EXPIRE_HOURS=2
+          CLOUDFLARE_TURNSTILE_SECRET=${{ secrets.CLOUDFLARE_TURNSTILE_SECRET }}
+          CLOUDFLARE_TURNSTILE_SITE_KEY=${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          MAX_CONNECTIONS_PER_USER=3
+          MAX_POSTS_PER_DAY_PER_CONNECTION=100
+          POST_HISTORY_RETENTION_DAYS_SUCCESS=30
+          POST_HISTORY_RETENTION_DAYS_FAILED=7
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          WEBHOOK_BASE_URL=${{ secrets.WEBHOOK_BASE_URL }}
+          ENV=production
+          ENVEOF
+
+            # Pull latest changes
+            git pull origin main
+
+            # Restart services
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d --build
+          ENDSSH
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f http://${{ secrets.SERVER_IP }}/health || exit 1
+          curl -f https://${{ secrets.DOMAIN }}/health || exit 1

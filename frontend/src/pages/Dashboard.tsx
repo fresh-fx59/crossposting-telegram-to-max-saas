@@ -47,14 +47,12 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [conns, tgConns, userData] = await Promise.all([
+      const [conns, tgConns] = await Promise.all([
         connectionsApi.listConnections(),
         connectionsApi.listTelegramConnections(),
-        connectionsApi.getUser?.() || (await fetch('/auth/me').then(r => r.json())),
       ]);
       setConnections(conns);
       setTelegramConnections(tgConns);
-      setUser(userData);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load connections');
     } finally {

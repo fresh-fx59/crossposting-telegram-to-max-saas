@@ -1,4 +1,4 @@
-axios"""API service for backend communication."""
+/** API service for backend communication. */
 
 import axios, { AxiosError, type AxiosInstance } from 'axios';
 
