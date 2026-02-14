@@ -36,6 +36,8 @@ from ..services.telegram_service import (
     set_webhook,
 )
 
+from .deps import CurrentUser, VerifiedUserOptional
+
 router = APIRouter()
 
 
@@ -44,13 +46,9 @@ router = APIRouter()
 async def create_telegram_connection(
     data: TelegramConnectionCreate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> TelegramConnectionResponse:
     """Create a new Telegram bot connection."""
-    from ..api.deps import get_current_user
-
-    current_user_obj = await current_user
-
     # Validate bot token with Telegram API
     bot_info = await get_telegram_bot_info(data.bot_token)
 
@@ -82,7 +80,7 @@ async def create_telegram_connection(
 
     # Create Telegram connection
     tg_connection = TelegramConnection(
-        user_id=current_user_obj.id,
+        user_id=current_user.id,
         telegram_channel_id=channel_id,
         telegram_channel_username=username,
         bot_token=encrypted_token,
@@ -119,12 +117,11 @@ async def create_telegram_connection(
 @router.get("/telegram", response_model=list[TelegramConnectionResponse])
 async def list_telegram_connections(
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> list[TelegramConnectionResponse]:
     """List all Telegram connections for the current user."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     result = await session.execute(
         select(TelegramConnection)
@@ -151,12 +148,11 @@ async def update_telegram_connection(
     telegram_connection_id: int,
     data: TelegramConnectionUpdate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> TelegramConnectionResponse:
     """Update a Telegram connection."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Find connection
     result = await session.execute(
@@ -199,12 +195,11 @@ async def update_telegram_connection(
 async def delete_telegram_connection(
     telegram_connection_id: int,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> None:
     """Delete a Telegram connection and remove webhook."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Find connection
     result = await session.execute(
@@ -238,12 +233,11 @@ async def delete_telegram_connection(
 async def create_connection(
     data: ConnectionCreate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:require_email_verified_optional")],
+    current_user: Annotated[User, VerifiedUserOptional],
 ) -> ConnectionResponse:
     """Create a new connection (Telegram channel -> Max chat mapping)."""
-    from ..api.deps import get_current_user, require_email_verified_optional
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Check email verification
     if not current_user_obj.is_email_verified:
@@ -301,12 +295,11 @@ async def create_connection(
 @router.get("", response_model=list[ConnectionResponse])
 async def list_connections(
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> list[ConnectionResponse]:
     """List all connections for the current user."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     result = await session.execute(
         select(Connection)
@@ -337,12 +330,11 @@ async def get_connection(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> ConnectionDetailResponse:
     """Get connection details with post history."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Find connection
     result = await session.execute(
@@ -395,12 +387,11 @@ async def update_connection(
     connection_id: int,
     data: ConnectionUpdate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> ConnectionResponse:
     """Update a connection."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Find connection
     result = await session.execute(
@@ -448,12 +439,11 @@ async def update_connection(
 async def delete_connection(
     connection_id: int,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> None:
     """Delete a connection."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Find connection
     result = await session.execute(
@@ -480,12 +470,11 @@ async def test_connection(
     connection_id: int,
     test_message: str = "Test message from Telegram Crossposter",
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> TestConnectionResponse:
     """Test sending a message to Max via the connection."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Check if Max credentials are set
     if not current_user_obj.max_token or not current_user_obj.max_chat_id:
@@ -547,13 +536,10 @@ async def test_connection(
 @router.post("/cleanup", response_model=dict[str, int])
 async def cleanup_old_data(
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
     # Only allow admin users - simplified for now
 ) -> dict[str, int]:
     """Clean up old post history and counters."""
-    from ..api.deps import get_current_user
-
-    await current_user
 
     posts_deleted = await cleanup_old_posts(session)
     counters_deleted = await cleanup_old_post_counts(session)

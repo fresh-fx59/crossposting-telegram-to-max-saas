@@ -35,6 +35,8 @@ from ..services.email_service import (
     send_verification_email,
 )
 
+from .deps import CurrentUser
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -170,7 +172,7 @@ async def logout() -> MessageResponse:
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user_obj: Annotated[User, Depends("deps:get_current_user")],
+    current_user_obj: CurrentUser,
 ) -> UserResponse:
     """Get information about the currently authenticated user."""
     return UserResponse(

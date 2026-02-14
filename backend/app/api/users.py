@@ -9,8 +9,10 @@ from ..database import get_async_session
 from ..database.models import User
 from ..schemas.auth import UserResponse
 from ..schemas.user import MessageResponse, UserUpdate
-from ..services.crypto import encrypt_optional_token
+from ..services.crypto import decrypt_token, encrypt_optional_token
 from ..services.max_service import send_test_message
+
+from .deps import CurrentUser
 
 router = APIRouter()
 
@@ -19,12 +21,11 @@ router = APIRouter()
 async def update_user(
     user_data: UserUpdate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
 ) -> UserResponse:
     """Update current user's settings (Max credentials)."""
-    from ..api.deps import get_current_user
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     # Encrypted Max token
     encrypted_token = encrypt_optional_token(user_data.max_token)
@@ -52,14 +53,13 @@ async def update_user(
 @router.post("/me/test-max", response_model=MessageResponse)
 async def test_max_connection(
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: Annotated[User, Depends("deps:get_current_user")],
+    current_user: CurrentUser,
     test_message: str = "Test message from Telegram Crossposter",
 ) -> MessageResponse:
     """Send a test message to verify Max credentials work."""
-    from ..api.deps import get_current_user
     from ..services.crypto import decrypt_token
 
-    current_user_obj = await current_user
+    current_user_obj = current_user
 
     if not current_user_obj.max_token or not current_user_obj.max_chat_id:
         raise HTTPException(
