@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_async_session
 from ..database.models import User
 from ..config import settings
-from .services.auth_service import decode_jwt_token, verify_token
+from ..services.auth_service import decode_jwt_token, verify_token
 
 
 # HTTP Bearer token scheme
