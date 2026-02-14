@@ -1,55 +1,126 @@
-# Telegram → Max Crossposting Bot
+# Telegram-to-Max Crossposting SaaS
 
-Automatically forwards messages (text and photos) from a Telegram channel to a [Max](https://max.ru) messenger chat.
+Multi-tenant SaaS application for forwarding posts from Telegram channels to Max messenger.
 
-**Supported content types:** text messages, photos (with captions).
+## Features
 
-**Requirements:** Python 3.10+
+- User registration with email verification (Cloudflare Turnstile captcha)
+- Multiple Telegram channel connections per user
+- Configurable Max bot credentials per user
+- Automatic webhook setup for Telegram channels
+- Daily post limits per connection
+- Post history with success/failure tracking
+- Encrypted token storage
 
-## Setup
+## Tech Stack
 
-### 1. Create a Telegram bot
-- Message [@BotFather](https://t.me/BotFather) on Telegram
-- Send `/newbot` and follow the prompts
-- Copy the bot token
-- Add the bot as an **admin** to your Telegram channel
+- **Backend**: FastAPI (Python 3.11+)
+- **Frontend**: React + TypeScript + Material UI
+- **Database**: PostgreSQL with async SQLAlchemy
+- **Deployment**: Docker + Docker Compose
 
-### 2. Create a Max bot
-- Message [@MasterBot](https://max.ru/MasterBot) in Max
-- Create a new bot and copy the token
-- Add the bot to your target Max chat or channel
+## Quick Start
 
-### 3. Get Max chat ID
-You can discover the chat ID by calling the Max Bot API:
-
-```
-curl "https://platform-api.max.ru/chats?access_token=YOUR_MAX_BOT_TOKEN"
-```
-
-### 4. Configure environment
+### Development
 
 ```bash
+# Copy environment variables
 cp .env.example .env
+
+# Start all services
+docker-compose up
+
+# Start backend only
+cd backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Start frontend only
+cd frontend
+npm install
+npm run dev
+
+# Run tests
+python tests/run_tests.py
 ```
 
-Edit `.env` and fill in your tokens and chat ID.
-
-### 5. Install dependencies
+### Production
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Configure your environment variables
+nano .env
+
+# Build and start
+docker-compose up -d
 ```
 
-### 6. Run
+## Environment Variables
 
-```bash
-python bot.py
+See [`.env.example`](.env.example) for all required configuration.
+
+Key variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET_KEY` - Secret for JWT tokens (32+ chars)
+- `SMTP_HOST/USER/PASSWORD` - Email configuration
+- `CLOUDFLARE_TURNSTILE_SECRET` - Captcha secret
+- `ENCRYPTION_KEY` - Key for token encryption (32 bytes)
+
+## API Documentation
+
+Once running, visit:
+- Frontend: http://localhost:3000
+- API Docs: http://localhost:8000/docs
+- Health: http://localhost:8000/health
+
+## Architecture
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Browser   │────▶│   Nginx      │────▶│  FastAPI    │
+│   (React)   │     │  (Proxy)     │     │  Backend    │
+└─────────────┘     └──────────────┘     └──────┬──────┘
+                                                 │
+                              ┌──────────────────┼──────────────────┐
+                              ▼                  ▼                  ▼
+                    ┌─────────────────┐  ┌─────────────┐         ┌─────────────┐
+                    │  PostgreSQL     │  │  Telegram   │         │  Max API    │
+                    │  (Data Store)   │  │  Webhook    │         │  (Platform  │
+                    │ (Async)         │  │  (Per user) │         │   API)      │
+                    └─────────────────┘  └─────────────┘         └─────────────┘
 ```
 
-Post a message in your Telegram channel — it should appear in Max.
+## User Flow
 
-## How it works
+1. Sign up (email/password + captcha)
+2. Verify email via link
+3. Log in
+4. Add Max credentials (bot token, chat ID)
+5. Add Telegram channel (channel name, bot token) → Webhook auto-set
+6. Create connection (link Telegram → Max)
+7. Post to Telegram → Appears in Max
 
-The bot polls Telegram for channel post updates. When a new post arrives, it downloads the content and forwards it to the Max chat via the [Max Bot API](https://dev.max.ru/). Photos are first uploaded to Max, then sent as image attachments. Other content types (videos, documents, etc.) are currently skipped.
+## Testing
+
+See [tests/README.md](tests/README.md) for detailed test documentation.
+
+## Project Structure
+
+```
+├── backend/
+│   ├── app/
+│   │   ├── api/       - FastAPI routes
+│   │   ├── database/   - SQLAlchemy models
+│   │   ├── schemas/    - Pydantic schemas
+│   │   └── services/   - Business logic
+├── frontend/
+│   └── src/
+│       ├── components/ - React components
+│       ├── pages/      - Route components
+│       └── services/   - API client
+├── nginx/              - Reverse proxy config
+├── tests/              - Automated tests with mocks
+└── docker-compose.yml  - Service orchestration
+```
+
+## License
+
+MIT
