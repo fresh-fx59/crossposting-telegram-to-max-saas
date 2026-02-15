@@ -11,10 +11,12 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Set API URL for production (same-origin deployment)
+# Set build-time environment variables
 # Override with: docker build --build-arg VITE_API_URL=https://yourdomain.com
 ARG VITE_API_URL=https://crossposter.aiengineerhelper.com
+ARG VITE_TURNSTILE_SITE_KEY=0x4AAAAAACdReuv0seDqWU3U
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY}
 
 # Build application
 RUN npm run build -- --mode production

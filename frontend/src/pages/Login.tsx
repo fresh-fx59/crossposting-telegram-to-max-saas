@@ -10,13 +10,18 @@ import {
   Typography,
   CircularProgress,
 } from '@mui/material';
+import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +30,16 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Please complete the captcha');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const captchaToken = 'test-captcha-token';
-      const result = await authApi.login(email, password, captchaToken);
+      const result = await authApi.login(email, password, captchaToken || 'no-captcha');
       localStorage.setItem('access_token', result.access_token);
 
       // Check if email is verified
@@ -42,6 +52,8 @@ export default function Login() {
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -88,18 +100,23 @@ export default function Login() {
             autoComplete="current-password"
           />
 
-          <Box sx={{ my: 2, p: 2, border: '1px dashed', borderColor: 'grey.400', borderRadius: 1 }}>
-            <Typography variant="body2" color="text.secondary" align="center">
-              Cloudflare Turnstile Captcha (placeholder)
-            </Typography>
-          </Box>
+          {TURNSTILE_SITE_KEY && (
+            <Box sx={{ my: 2, display: 'flex', justifyContent: 'center' }}>
+              <Turnstile
+                key={captchaKey}
+                sitekey={TURNSTILE_SITE_KEY}
+                onVerify={(token: string) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken('')}
+              />
+            </Box>
+          )}
 
           <Button
             type="submit"
             variant="contained"
             fullWidth
             size="large"
-            disabled={loading}
+            disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
             sx={{ mt: 2 }}
           >
             {loading ? <CircularProgress size={24} /> : 'Login'}

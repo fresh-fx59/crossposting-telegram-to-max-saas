@@ -1,6 +1,3 @@
-// Frontend pages will be created as lightweight components
-// Full implementation continues in next files
-
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
@@ -13,15 +10,18 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
 
-// Note: Cloudflare Turnstile would require actual component
-// This is a placeholder for the captcha implementation
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
 export default function Register() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -40,18 +40,22 @@ export default function Register() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Please complete the captcha');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Placeholder captcha token - in production, use react-turnstile
-      const captchaToken = 'test-captcha-token';
-
-      const result = await authApi.register(email, password, captchaToken);
+      const result = await authApi.register(email, password, captchaToken || 'no-captcha');
       localStorage.setItem('access_token', result.access_token);
       setSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed');
+      setCaptchaToken('');
+      setCaptchaKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -116,19 +120,23 @@ export default function Register() {
             autoComplete="new-password"
           />
 
-          {/* Cloudflare Turnstile placeholder */}
-          <Box sx={{ my: 2, p: 2, border: '1px dashed', borderColor: 'grey.400', borderRadius: 1 }}>
-            <Typography variant="body2" color="text.secondary" align="center">
-              Cloudflare Turnstile Captcha (placeholder)
-            </Typography>
-          </Box>
+          {TURNSTILE_SITE_KEY && (
+            <Box sx={{ my: 2, display: 'flex', justifyContent: 'center' }}>
+              <Turnstile
+                key={captchaKey}
+                sitekey={TURNSTILE_SITE_KEY}
+                onVerify={(token: string) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken('')}
+              />
+            </Box>
+          )}
 
           <Button
             type="submit"
             variant="contained"
             fullWidth
             size="large"
-            disabled={loading}
+            disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
             sx={{ mt: 2 }}
           >
             {loading ? <CircularProgress size={24} /> : 'Register'}
