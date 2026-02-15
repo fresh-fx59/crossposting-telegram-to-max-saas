@@ -84,7 +84,7 @@ async def register(
 
     # Create and send verification email
     verification_token = await create_verification_token(session, user.id)
-    await send_verification_email(user.email, verification_token)
+    send_verification_email(user.email, verification_token)
 
     # Commit after email sending
     await session.commit()
@@ -211,7 +211,7 @@ async def forgot_password(
     if user:
         # Create and send reset token
         reset_token = await create_password_reset_token(session, user)
-        await send_password_reset_email(user.email, reset_token)
+        send_password_reset_email(user.email, reset_token)
         await session.commit()
 
         logger.info("Password reset requested for: %s", user.email)

@@ -54,40 +54,91 @@ python tests/run_tests.py
 - Email configured for Let's Encrypt notifications
 
 #### Setup Steps
+#### Setup Steps
 
-1. **Clone the repository** on your server:
+1. **Install Docker and Docker Compose** (if not already installed):
    ```bash
-   git clone https://github.com/YOUR_USERNAME/crossposting-telegram-to-max-saas.git
-   cd crossposting-telegram-to-max-saas
+   sudo apt update && sudo apt upgrade -y
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   sudo apt install docker-compose -y
+   docker --version  # Should show 29.2.1+
+   docker-compose --version  # Should show 1.29.2+
    ```
 
-2. **Configure environment variables**:
+2. **Clone or deploy** repository to your server:
+   ```bash
+   mkdir -p ~/apps && cd ~/apps
+   # Option A: git clone
+   git clone https://github.com/YOUR_USERNAME/crossposting-telegram-to-max-saas.git
+   cd crossposting-telegram-to-max-saas
+   # Option B: Transfer via tar
+   tar -czf - . | ssh root@server-ip "
+     mkdir -p ~/apps/crossposting && cd ~/apps/crossposting && tar -xzf -
+   "
+   ```
+
+3. **Configure environment variables**:
    ```bash
    cp .env.example .env
    nano .env
    ```
+   Generate secure values:
+   ```bash
+   POSTGRES_PASSWORD=$(openssl rand -base64 32)
+   JWT_SECRET_KEY=$(openssl rand -base64 48)
+   ENCRYPTION_KEY=$(openssl rand -base64 32)
+   ```
    Update all required variables (see Environment Variables section below).
 
-3. **Update domain in configuration**:
+4. **Create SSL certificates**:
+   - For testing (self-signed):
+     ```bash
+     mkdir -p certs
+     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+       -keyout certs/key.pem -out certs/cert.pem \
+       -subj "/CN=your-domain.com"
+     ```
+   - For production: Disable Cloudflare proxy, Let's Encrypt will auto-issue
+
+5. **CRITICAL: Fix backend code bug** (before building):
+   ```bash
+   cd backend
+   sed -i 's/await send_verification_email/send_verification_email/g' app/api/auth.py
+   sed -i 's/await send_password_reset_email/send_password_reset_email/g' app/api/auth.py
+   ```
+   **Note:** `send_verification_email()` and `send_password_reset_email()` are NOT async functions but were being awaited.
+
+6. **Update domain and configuration**:
    - Edit `docker-compose.prod.yml`
    - Replace `telegram-crossposting-saas.aiengineerhelper.com` with your domain in all Traefik labels
    - Update `TRAEFIK_ACME_EMAIL` to your email
+   - Add `DOCKER_API_VERSION: 1.53` to traefik environment to prevent Docker connection errors
 
-4. **Deploy**:
+7. **Configure DNS** (if using Cloudflare):
+   - For self-signed certs: Set SSL/TLS mode to "Flexible"
+   - For Let's Encrypt: Disable Cloudflare proxy (gray cloud)
+
+8. **Deploy**:
    ```bash
    docker-compose -f docker-compose.prod.yml up -d --build
    ```
 
-5. **Verify deployment**:
+9. **Verify deployment**:
    ```bash
-   # Check containers are running
+   # Check containers are running (should show 4)
    docker ps --filter "name=crossposter"
 
-   # Check Traefik dashboard
-   curl http://YOUR_SERVER_IP:8080/api/http/routers
+   # Test health endpoint
+   curl -s -H 'Host:your-domain.com' http://localhost/health
+   # Expected: {"status":"healthy"}
 
-   # Test the site
-   curl -H "Host:YOUR_DOMAIN.com" http://YOUR_SERVER_IP/
+   # Test registration
+   curl -X POST https://your-domain.com/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@example.com","password":"testpass","captcha_token":"fake"}'
+   ```
+
    ```
 
 #### Troubleshooting Production Deployment
@@ -106,6 +157,35 @@ python tests/run_tests.py
 - Symptom: `expected operand, found '/'` on domain parsing
 - Cause: Missing backticks around domain name
 - Fix: Use `Host(\`your-domain.com\`)` with backticks
+
+**Issue: Traefik "client version 1.24 is too old" error**
+- Symptom: `Provider connection error: client version 1.24 is too old. Minimum supported API version is 1.44`
+- Cause: Traefik container cannot communicate with Docker daemon
+- Fix: Add `DOCKER_API_VERSION` environment variable to traefik service:
+  ```yaml
+  traefik:
+    environment:
+      - DOCKER_API_VERSION=1.53
+  ```
+
+**Issue: Backend Internal Server Error "object dict can't be used in 'await' expression"**
+- Symptom: Registration endpoint fails with 500 error
+- Cause: `send_verification_email()` and `send_password_reset_email()` are not async functions but being awaited
+- Fix: Before building, edit `backend/app/api/auth.py`:
+  ```bash
+  sed -i 's/await send_verification_email/send_verification_email/g' backend/app/api/auth.py
+  sed -i 's/await send_password_reset_email/send_password_reset_email/g' backend/app/api/auth.py
+  ```
+
+**Issue: Cloudflare Error 526 "Invalid SSL certificate"**
+- Symptom: Cloudflare rejects connection to origin due to invalid SSL certificate
+- Causes:
+  - Using self-signed certificates with Cloudflare "Full" or "Full (strict)" SSL mode
+  - Origin doesn't have trusted certificate
+- Fixes:
+  1. Set Cloudflare SSL/TLS mode to "Flexible" (allows HTTP from origin)
+  2. Or disable Cloudflare proxy (gray cloud) and use direct A record
+  3. Or use Let's Encrypt for trusted certificates (requires DNS-only mode)
 
 **Issue: Deployment fails on GitHub Actions**
 - Symptom: SSH authentication failed with exit code 255
