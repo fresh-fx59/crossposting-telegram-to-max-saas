@@ -82,17 +82,20 @@ async def register(
     session.add(user)
     await session.flush()
 
-    # Create and send verification email
-    verification_token = await create_verification_token(session, user.id)
-    send_verification_email(user.email, verification_token)
-
-    # Commit after email sending
+    # Commit user to database first
     await session.commit()
+
+    # Try to send verification email (non-blocking)
+    try:
+        verification_token = await create_verification_token(session, user.id)
+        send_verification_email(user.email, verification_token)
+        await session.commit()
+        logger.info("New user registered: %s (verification email sent)", user.email)
+    except Exception as e:
+        logger.warning("New user registered: %s (verification email failed: %s)", user.email, e)
 
     # Generate JWT token
     access_token = generate_jwt_token(user.id)
-
-    logger.info("New user registered: %s (verification email sent)", user.email)
 
     return TokenResponse(access_token=access_token)
 
