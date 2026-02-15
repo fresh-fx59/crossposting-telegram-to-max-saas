@@ -1,119 +1,119 @@
 version: '3.8'
-
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.1
     container_name: crossposter-traefik
     command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.mytlschallenge.acme.tlschallenge=true"
-      - "--certificatesresolvers.mytlschallenge.acme.email=${TRAEFIK_ACME_EMAIL:-admin@aiengineerhelper.com}"
-      - "--certificatesresolvers.mytlschallenge.acme.storage=/letsencrypt/acme.json"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    - --api.insecure=true
+    - --providers.docker=true
+    - --providers.docker.exposedbydefault=false
+    - --entrypoints.web.address=:80
+    - --entrypoints.websecure.address=:443
+    - --entrypoints.websecure.http.tls=true
+    - --entrypoints.websecure.http.tls.certificates=/certs/cert.pem,/certs/key.pem
+    - --entrypoints.web.http.redirections.entrypoint.to=websecure
+    - --entrypoints.web.http.redirections.entrypoint.scheme=https
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
+    - 80:80
+    - 443:443
+    - 8080:8080
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik-letsencrypt:/letsencrypt
+    - source: ./certs
+      target: /certs
+      read_only: true
+    - source: /var/run/docker.sock
+      target: /var/run/docker.sock
+      read_only: true
     networks:
-      - crossposter-network
-
+    - crossposter-network
+    restart: unless-stopped
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: crossposter-backend
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
-      - "traefik.http.routers.backend-api.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-api.entrypoints=websecure"
-      - "traefik.http.routers.backend-api.service=backend"
-      - "traefik.http.routers.backend-api.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.backend-auth.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/auth`)"
-      - "traefik.http.routers.backend-auth.entrypoints=websecure"
-      - "traefik.http.routers.backend-auth.service=backend"
-      - "traefik.http.routers.backend-auth.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.backend-webhook.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/webhook`)"
-      - "traefik.http.routers.backend-webhook.entrypoints=websecure"
-      - "traefik.http.routers.backend-webhook.service=backend"
-      - "traefik.http.routers.backend-webhook.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.backend-health.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`) && PathPrefix(`/health`)"
-      - "traefik.http.routers.backend-health.entrypoints=websecure"
-      - "traefik.http.routers.backend-health.service=backend"
-      - "traefik.http.routers.backend-health.tls.certresolver=mytlschallenge"
+    - traefik.enable=true
+    - traefik.http.services.backend.loadbalancer.server.port=8000
+    - traefik.http.routers.backend-api.rule=Host(crossposter.aiengineerhelper.com)
+      && PathPrefix(/api)
+    - traefik.http.routers.backend-api.entrypoints=websecure
+    - traefik.http.routers.backend-api.service=backend
+    - traefik.http.routers.backend-api.tls=true
+    - traefik.http.routers.backend-auth.rule=Host(crossposter.aiengineerhelper.com)
+      && PathPrefix(/auth)
+    - traefik.http.routers.backend-auth.entrypoints=websecure
+    - traefik.http.routers.backend-auth.service=backend
+    - traefik.http.routers.backend-auth.tls=true
+    - traefik.http.routers.backend-webhook.rule=Host(crossposter.aiengineerhelper.com)
+      && PathPrefix(/webhook)
+    - traefik.http.routers.backend-webhook.entrypoints=websecure
+    - traefik.http.routers.backend-webhook.service=backend
+    - traefik.http.routers.backend-webhook.tls=true
+    - traefik.http.routers.backend-health.rule=Host(crossposter.aiengineerhelper.com)
+      && PathPrefix(/health)
+    - traefik.http.routers.backend-health.entrypoints=websecure
+    - traefik.http.routers.backend-health.service=backend
+    - traefik.http.routers.backend-health.tls=true
     environment:
-      - DATABASE_URL=postgresql+asyncpg://crossposter:${POSTGRES_PASSWORD}@postgres:5432/crossposter
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ALGORITHM=HS256
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - SMTP_FROM=${SMTP_FROM}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME}
-      - EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
-      - PASSWORD_RESET_TOKEN_EXPIRE_HOURS=2
-      - CLOUDFLARE_TURNSTILE_SECRET=${CLOUDFLARE_TURNSTILE_SECRET}
-      - CLOUDFLARE_TURNSTILE_SITE_KEY=${CLOUDFLARE_TURNSTILE_SITE_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - MAX_CONNECTIONS_PER_USER=3
-      - MAX_POSTS_PER_DAY_PER_CONNECTION=100
-      - POST_HISTORY_RETENTION_DAYS_SUCCESS=30
-      - POST_HISTORY_RETENTION_DAYS_FAILED=7
-      - FRONTEND_URL=${FRONTEND_URL}
-      - WEBHOOK_BASE_URL=${WEBHOOK_BASE_URL}
-      - ENV=production
+    - DATABASE_URL=postgresql+asyncpg://crossposter:c1b18c10aab4a76cb22437f4e2a5dda4c720afca2ccd06c5144dd68d6e8357bc@postgres:5432/crossposter
+    - POSTGRES_PASSWORD=c1b18c10aab4a76cb22437f4e2a5dda4c720afca2ccd06c5144dd68d6e8357bc
+    - JWT_SECRET_KEY=b0016d1fffd6e920587227141218fa747e6d61aa540604cc8e0e4f61ff826c0f6b7d9abc0c79479d1b1ffd3eed76b7502d73e11ad23dacb5aab7779558bbd2e6
+    - JWT_ALGORITHM=HS256
+    - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+    - SMTP_HOST=smtp.gmail.com
+    - SMTP_PORT=587
+    - SMTP_USER=your-email@gmail.com
+    - SMTP_PASSWORD=your-app-password
+    - SMTP_FROM=crossposter@aiengineerhelper.com
+    - SMTP_FROM_NAME=Telegram Crossposter
+    - EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
+    - PASSWORD_RESET_TOKEN_EXPIRE_HOURS=2
+    - CLOUDFLARE_TURNSTILE_SECRET=your-turnstile-secret-key
+    - CLOUDFLARE_TURNSTILE_SITE_KEY=your-turnstile-site-key
+    - ENCRYPTION_KEY=5fd1b88de06bb44f69121f86ce5958c5d5749c4f5dea7b46e84c4c0fbeac2c3d
+    - MAX_CONNECTIONS_PER_USER=3
+    - MAX_POSTS_PER_DAY_PER_CONNECTION=100
+    - POST_HISTORY_RETENTION_DAYS_SUCCESS=30
+    - POST_HISTORY_RETENTION_DAYS_FAILED=7
+    - FRONTEND_URL=https://crossposter.aiengineerhelper.com
+    - WEBHOOK_BASE_URL=https://crossposter.aiengineerhelper.com
+    - ENV=production
     depends_on:
-      - postgres
+    - postgres
     networks:
-      - crossposter-network
+    - crossposter-network
     restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: crossposter-frontend
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      - "traefik.http.routers.frontend.rule=Host(`telegram-crossposting-saas.aiengineerhelper.com`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.service=frontend"
-      - "traefik.http.routers.frontend.tls.certresolver=mytlschallenge"
-    depends_on:
-      - backend
+    - traefik.enable=true
+    - traefik.http.services.frontend.loadbalancer.server.port=80
+    - traefik.http.routers.frontend.rule=Host(crossposter.aiengineerhelper.com)
+    - traefik.http.routers.frontend.entrypoints=websecure
+    - traefik.http.routers.frontend.service=frontend
+    - traefik.http.routers.frontend.tls=true
     networks:
-      - crossposter-network
+    - crossposter-network
     restart: unless-stopped
-
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: crossposter-postgres
     environment:
-      - POSTGRES_USER=crossposter
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=crossposter
+    - POSTGRES_USER=crossposter
+    - POSTGRES_PASSWORD=c1b18c10aab4a76cb22437f4e2a5dda4c720afca2ccd06c5144dd68d6e8357bc
+    - POSTGRES_DB=crossposter
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+    - source: postgres_data
+      target: /var/lib/postgresql/data
     networks:
-      - crossposter-network
+    - crossposter-network
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-  traefik-letsencrypt:
-
 networks:
   crossposter-network:
     driver: bridge
+volumes:
+  postgres_data: {}
