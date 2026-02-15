@@ -146,7 +146,7 @@ Docker provider on newer Docker Engine versions (29+).
 | `.env` | Environment variables (secrets, not committed) |
 | `.env.example` | Template for `.env` |
 | `certs/cert.pem`, `certs/key.pem` | TLS certificates (not committed) |
-| `frontend/Dockerfile` | Frontend build (bakes `VITE_API_URL` at build time) |
+| `frontend/Dockerfile` | Frontend build (bakes `VITE_API_URL` and `VITE_TURNSTILE_SITE_KEY` at build time) |
 | `backend/Dockerfile` | Backend container |
 
 ### Environment Variables
@@ -158,8 +158,8 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `POSTGRES_PASSWORD` | Database password (must match in `DATABASE_URL`) |
 | `JWT_SECRET_KEY` | JWT signing key (64+ hex chars) |
 | `ENCRYPTION_KEY` | AES encryption key for bot tokens (32+ hex chars) |
-| `CLOUDFLARE_TURNSTILE_SECRET` | Turnstile captcha server key |
-| `CLOUDFLARE_TURNSTILE_SITE_KEY` | Turnstile captcha client key |
+| `CLOUDFLARE_TURNSTILE_SECRET` | Turnstile captcha server key (set via `.env`) |
+| `CLOUDFLARE_TURNSTILE_SITE_KEY` | Turnstile captcha client key (baked into frontend at build time, rebuild frontend to change) |
 | `FRONTEND_URL` | Public URL (e.g., `https://crossposter.aiengineerhelper.com`) |
 | `WEBHOOK_BASE_URL` | Same as FRONTEND_URL (Telegram webhook target) |
 
@@ -176,6 +176,10 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 **Blank page in browser (HTML loads but nothing renders)**
 - Hard refresh (`Ctrl+Shift+R`) to clear cached old JS bundle.
 - Verify `VITE_API_URL` was set at frontend build time: check the JS bundle for your domain.
+
+**Changing Turnstile or API URL**
+- Frontend builds require `--build-arg` for `VITE_API_URL` and `VITE_TURNSTILE_SITE_KEY`.
+- Example: `docker compose -f docker-compose.prod.yml build --build-arg VITE_TURNSTILE_SITE_KEY=newkey frontend`
 
 **Traefik "client version too old" error**
 - This happens with Docker provider on Docker Engine 29+. The file-based provider
