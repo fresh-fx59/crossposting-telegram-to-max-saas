@@ -1,0 +1,61 @@
+## Traefik Dynamic Configuration
+## Update the domain name below to match your deployment.
+
+http:
+  routers:
+    frontend:
+      rule: "Host(`crossposter.aiengineerhelper.com`)"
+      entryPoints:
+        - websecure
+      service: frontend
+      tls: {}
+      priority: 1
+
+    backend-api:
+      rule: "Host(`crossposter.aiengineerhelper.com`) && PathPrefix(`/api`)"
+      entryPoints:
+        - websecure
+      service: backend
+      tls: {}
+
+    backend-auth:
+      rule: "Host(`crossposter.aiengineerhelper.com`) && PathPrefix(`/auth`)"
+      entryPoints:
+        - websecure
+      service: backend
+      tls: {}
+
+    backend-webhook:
+      rule: "Host(`crossposter.aiengineerhelper.com`) && PathPrefix(`/webhook`)"
+      entryPoints:
+        - websecure
+      service: backend
+      tls: {}
+
+    backend-health:
+      rule: "Host(`crossposter.aiengineerhelper.com`) && PathPrefix(`/health`)"
+      entryPoints:
+        - websecure
+      service: backend
+      tls: {}
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://crossposter-frontend:80"
+
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://crossposter-backend:8000"
+
+tls:
+  certificates:
+    - certFile: /certs/cert.pem
+      keyFile: /certs/key.pem
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/cert.pem
+        keyFile: /certs/key.pem

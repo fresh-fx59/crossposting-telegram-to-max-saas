@@ -75,3 +75,6 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# TLS certificates (generated per-server, never commit)
+certs/

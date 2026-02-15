@@ -4,21 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Telegram-to-Max crossposting bot. Automatically forwards messages (text and photos with captions) from a Telegram channel to a Max messenger chat using an event-driven async architecture. Requires Python 3.10+ (uses `str | None` union syntax).
+Multi-tenant SaaS for crossposting from Telegram channels to Max messenger. Users register, configure their Telegram bot + Max credentials, and the system forwards posts automatically via webhooks.
 
-## Setup and Run
+Live at: https://crossposter.aiengineerhelper.com/
+
+## Tech Stack
+
+- **Backend**: FastAPI (Python 3.11) with async SQLAlchemy + PostgreSQL 17
+- **Frontend**: React 18 + TypeScript + Material UI, built with Vite
+- **Reverse Proxy**: Traefik v3.3 with file-based provider (not Docker provider)
+- **Deployment**: Docker Compose on Ubuntu server behind Cloudflare
+
+## Development
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python bot.py
+cp .env.example .env
+docker compose up
+# Backend: http://localhost:8000, Frontend: http://localhost:3000
 ```
+
+## Production Deployment
+
+Deployment path: `~/apps/crossposting/`
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Key production files (not in git): `.env` (secrets), `certs/` (TLS certs).
+Key production files (in git): `config/traefik-dynamic.yml` (routing), `docker-compose.prod.yml`.
 
 ## Architecture
 
-Single-file Python app (`bot.py`) using `python-telegram-bot` for receiving Telegram channel posts and `httpx` for async HTTP calls to the Max Bot API.
+**Traefik routing** (defined in `config/traefik-dynamic.yml`):
+- `/api/*`, `/auth/*`, `/webhook/*`, `/health` → backend (FastAPI on port 8000)
+- `/` (catch-all, priority 1) → frontend (nginx on port 80)
 
-**Flow:** Telegram channel post → `handle_channel_post()` routes by content type → text goes to `send_max_text()`, photos go through `upload_max_photo()` → `send_max_photo()`.
+**Frontend build**: `VITE_API_URL` is baked at Docker build time via `ARG` in `frontend/Dockerfile`. The API client (`frontend/src/services/api.ts`) uses this as the axios `baseURL`.
 
-**Configuration:** Environment variables only (`TELEGRAM_BOT_TOKEN`, `MAX_BOT_TOKEN`, `MAX_CHAT_ID`), loaded via `python-dotenv`. See `.env.example` for template.
+**Backend config**: Pydantic Settings loads from `.env` file. `JWT_SECRET_KEY` and `ENCRYPTION_KEY` have `min_length=32` validation.

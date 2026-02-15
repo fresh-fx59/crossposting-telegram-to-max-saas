@@ -25,14 +25,23 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'claude-developer' }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
-          # Create .env file on server from secrets
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP << 'ENDSSH'
-            cd ~/apps/crossposting-telegram-to-max-saas
+            APP_DIR="$HOME/apps/crossposting"
+            mkdir -p "$APP_DIR/certs" "$APP_DIR/config"
+            cd "$APP_DIR"
 
-            # Create/update .env file from GitHub secrets
+            # Pull latest code
+            if [ ! -d ".git" ]; then
+              git clone ${{ github.server_url }}/${{ github.repository }}.git .
+            else
+              git fetch origin
+              git reset --hard origin/main
+            fi
+
+            # Create .env from GitHub secrets (only if it doesn't exist or force update)
             cat > .env << 'ENVEOF'
-          DATABASE_URL=postgresql+asyncpg://crossposter:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/crossposter
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL=postgresql+asyncpg://crossposter:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/crossposter
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           JWT_ALGORITHM=HS256
           JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -56,13 +65,22 @@ jobs:
           ENV=production
           ENVEOF
 
-            # Pull latest changes and rebuild
-            git pull origin main 2>/dev/null || git fetch origin && git checkout -f origin/main
-            docker-compose -f docker-compose.prod.yml up -d --build
+            # Generate self-signed certs if missing
+            if [ ! -f "certs/cert.pem" ]; then
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout certs/key.pem -out certs/cert.pem \
+                -subj "/CN=crossposter.aiengineerhelper.com" 2>/dev/null
+            fi
+
+            # Build and deploy
+            docker compose -f docker-compose.prod.yml up -d --build
           ENDSSH
 
       - name: Health check
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'claude-developer' }}
         run: |
           sleep 15
-          echo "Checking http://${{ secrets.SERVER_IP }}/health..."
-          curl -f http://${{ secrets.SERVER_IP }}/health || exit 1
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP \
+            'curl -sf -H "Host: crossposter.aiengineerhelper.com" https://localhost/health || curl -sf http://localhost/health'
