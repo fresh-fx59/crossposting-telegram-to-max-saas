@@ -25,18 +25,22 @@ docker compose up
 
 ## Production Deployment
 
-Deployment path: `~/apps/crossposting/`
+Deployment path: `~/crossposting-telegram-to-max-saas/`
+
+Traefik runs as a shared reverse proxy in `~/traefik/` (separate from the app). The `traefik/` directory in this repo contains reference configs the user copies to the server once.
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Key production files (not in git): `.env` (secrets), `certs/` (TLS certs).
-Key production files (in git): `config/traefik-dynamic.yml` (routing), `docker-compose.prod.yml`.
+Key production files (not in git): `.env` (secrets).
+Key production files (in git): `docker-compose.prod.yml`, `traefik/` (reference Traefik configs).
+
+CI/CD: GitHub Actions (`.github/workflows/deploy.yml`) does `git pull` + `docker compose up --build`. Only needs 3 secrets: `SSH_PRIVATE_KEY`, `SERVER_IP`, `DEPLOY_USER`.
 
 ## Architecture
 
-**Traefik routing** (defined in `config/traefik-dynamic.yml`):
+**Traefik routing** (defined in `traefik/dynamic/crossposting.yml`, deployed to `~/traefik/dynamic/`):
 - `/api/*`, `/auth/*`, `/webhook/*`, `/health` → backend (FastAPI on port 8000)
 - `/` (catch-all, priority 1) → frontend (nginx on port 80)
 

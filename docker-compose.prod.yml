@@ -1,26 +1,4 @@
 services:
-  traefik:
-    image: traefik:v3.3
-    container_name: crossposter-traefik
-    command:
-      - --api.insecure=true
-      - --providers.file.directory=/config
-      - --providers.file.watch=true
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - ./certs:/certs:ro
-      - ./config:/config:ro
-    networks:
-      - crossposter_network
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
@@ -31,6 +9,7 @@ services:
     depends_on:
       - postgres
     networks:
+      - traefik-public
       - crossposter_network
     restart: unless-stopped
 
@@ -40,6 +19,7 @@ services:
       dockerfile: Dockerfile
     container_name: crossposter-frontend
     networks:
+      - traefik-public
       - crossposter_network
     restart: unless-stopped
 
@@ -57,6 +37,8 @@ services:
     restart: unless-stopped
 
 networks:
+  traefik-public:
+    external: true
   crossposter_network:
     driver: bridge
 

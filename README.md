@@ -67,9 +67,9 @@ Internet -> Cloudflare (public TLS) -> Server
                    port 5432
 ```
 
-Traefik uses a **file-based provider** (`config/traefik-dynamic.yml`) for routing rules
-and TLS certificates. This avoids Docker API version incompatibilities that occur with the
-Docker provider on newer Docker Engine versions (29+).
+Traefik runs as a **shared reverse proxy** in a separate `~/traefik/` directory, using a
+file-based provider for routing. This allows multiple sites to share one Traefik instance.
+Reference configs are in `traefik/` in this repo.
 
 ### Setup Steps
 
@@ -80,13 +80,22 @@ Docker provider on newer Docker Engine versions (29+).
    # Log out and back in
    ```
 
-2. **Clone and configure**:
+2. **Set up shared Traefik** (one-time, serves all sites):
    ```bash
-   mkdir -p ~/apps/crossposting && cd ~/apps/crossposting
-   git clone https://github.com/YOUR_USERNAME/crossposting-telegram-to-max-saas.git .
+   mkdir -p ~/traefik/dynamic ~/traefik/certs
+   # Copy traefik/docker-compose.yml from this repo to ~/traefik/
+   # Copy traefik/dynamic/crossposting.yml to ~/traefik/dynamic/
+   # Add TLS certs to ~/traefik/certs/ (self-signed or Cloudflare Origin CA)
+   cd ~/traefik && docker compose up -d
    ```
 
-3. **Create `.env`** with real values:
+3. **Clone the app**:
+   ```bash
+   cd ~ && git clone https://github.com/YOUR_USERNAME/crossposting-telegram-to-max-saas.git
+   cd ~/crossposting-telegram-to-max-saas
+   ```
+
+4. **Create `.env`** with real values:
    ```bash
    cp .env.example .env
    nano .env
@@ -99,38 +108,33 @@ Docker provider on newer Docker Engine versions (29+).
    ```
    **Important**: The password in `DATABASE_URL` must match `POSTGRES_PASSWORD`.
 
-4. **Create TLS certificates** in `certs/`:
-   ```bash
-   mkdir -p certs
-   # Option A: Self-signed (works with Cloudflare Full mode)
-   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-     -keyout certs/key.pem -out certs/cert.pem \
-     -subj "/CN=crossposter.aiengineerhelper.com"
-
-   # Option B: Cloudflare Origin CA (recommended)
-   # Download from Cloudflare dashboard -> SSL/TLS -> Origin Server
-   ```
-
-5. **Update domain** in `config/traefik-dynamic.yml`:
-   Replace `crossposter.aiengineerhelper.com` with your domain in all router rules.
-
-6. **Deploy**:
+5. **Deploy**:
    ```bash
    docker compose -f docker-compose.prod.yml up -d --build
    ```
 
-7. **Verify**:
+6. **Verify**:
    ```bash
-   # All 4 containers running
+   # 3 containers running (backend, frontend, postgres)
    docker compose -f docker-compose.prod.yml ps
 
    # Health check
-   curl -sk -H "Host: crossposter.aiengineerhelper.com" https://localhost/health
+   curl -sf https://crossposter.aiengineerhelper.com/health
    # Expected: {"status":"healthy"}
-
-   # Frontend loads
-   curl -s https://crossposter.aiengineerhelper.com/ | head -5
    ```
+
+### CI/CD (GitHub Actions)
+
+After the first manual deploy, subsequent deploys are automated. Push to `main` triggers `.github/workflows/deploy.yml` which SSHs into the server, runs `git pull`, and rebuilds containers.
+
+Required GitHub secrets (only 3):
+| Secret | Description |
+|--------|-------------|
+| `SSH_PRIVATE_KEY` | SSH key with access to the server |
+| `SERVER_IP` | Server IP address |
+| `DEPLOY_USER` | SSH username (e.g., `claude-developer`) |
+
+The workflow does **not** touch `.env`, certs, or Traefik — those are managed manually on the server.
 
 ### DNS / Cloudflare Setup
 
@@ -142,10 +146,9 @@ Docker provider on newer Docker Engine versions (29+).
 | File | Purpose |
 |------|---------|
 | `docker-compose.prod.yml` | Production service definitions |
-| `config/traefik-dynamic.yml` | Traefik routing rules and TLS certs |
+| `traefik/` | Reference Traefik configs (copy to `~/traefik/` on server) |
 | `.env` | Environment variables (secrets, not committed) |
 | `.env.example` | Template for `.env` |
-| `certs/cert.pem`, `certs/key.pem` | TLS certificates (not committed) |
 | `frontend/Dockerfile` | Frontend build (bakes `VITE_API_URL` and `VITE_TURNSTILE_SITE_KEY` at build time) |
 | `backend/Dockerfile` | Backend container |
 
@@ -170,8 +173,9 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 - `JWT_SECRET_KEY` and `ENCRYPTION_KEY` must be 32+ characters.
 
 **Traefik returns 404**
-- Verify `config/traefik-dynamic.yml` exists and has correct domain.
-- Check `docker logs crossposter-traefik` for config errors.
+- Verify `~/traefik/dynamic/crossposting.yml` exists and has correct domain.
+- Check `docker logs traefik` for config errors.
+- Ensure the `traefik-public` network exists: `docker network ls | grep traefik-public`.
 
 **Blank page in browser (HTML loads but nothing renders)**
 - Hard refresh (`Ctrl+Shift+R`) to clear cached old JS bundle.
@@ -210,12 +214,14 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 │   │   └── services/    # API client (axios)
 │   ├── Dockerfile       # Multi-stage build with VITE_API_URL
 │   └── nginx.conf       # SPA routing config
-├── config/
-│   └── traefik-dynamic.yml  # Routing rules + TLS config
+├── traefik/
+│   ├── docker-compose.yml       # Shared Traefik (copy to ~/traefik/)
+│   └── dynamic/
+│       └── crossposting.yml     # Routing rules for this app
 ├── scripts/
 │   └── deploy.sh            # Deployment helper script
 ├── docker-compose.yml       # Development stack
-├── docker-compose.prod.yml  # Production stack (Traefik)
+├── docker-compose.prod.yml  # Production stack (no Traefik)
 ├── .env.example             # Environment template
 └── tests/                   # Automated tests
 ```

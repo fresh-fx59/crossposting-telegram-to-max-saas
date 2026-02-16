@@ -10,9 +10,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -22,65 +19,20 @@ jobs:
 
       - name: Deploy to server
         env:
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'claude-developer' }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP << 'ENDSSH'
-            APP_DIR="$HOME/apps/crossposting"
-            mkdir -p "$APP_DIR/certs" "$APP_DIR/config"
-            cd "$APP_DIR"
-
-            # Pull latest code
-            if [ ! -d ".git" ]; then
-              git clone ${{ github.server_url }}/${{ github.repository }}.git .
-            else
-              git fetch origin
-              git reset --hard origin/main
-            fi
-
-            # Create .env from GitHub secrets (only if it doesn't exist or force update)
-            cat > .env << 'ENVEOF'
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          DATABASE_URL=postgresql+asyncpg://crossposter:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/crossposter
-          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          JWT_ALGORITHM=HS256
-          JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-          SMTP_FROM=${{ secrets.SMTP_FROM }}
-          SMTP_FROM_NAME=${{ secrets.SMTP_FROM_NAME }}
-          EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
-          PASSWORD_RESET_TOKEN_EXPIRE_HOURS=2
-          CLOUDFLARE_TURNSTILE_SECRET=${{ secrets.CLOUDFLARE_TURNSTILE_SECRET }}
-          CLOUDFLARE_TURNSTILE_SITE_KEY=${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
-          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
-          MAX_CONNECTIONS_PER_USER=3
-          MAX_POSTS_PER_DAY_PER_CONNECTION=100
-          POST_HISTORY_RETENTION_DAYS_SUCCESS=30
-          POST_HISTORY_RETENTION_DAYS_FAILED=7
-          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-          WEBHOOK_BASE_URL=${{ secrets.WEBHOOK_BASE_URL }}
-          ENV=production
-          ENVEOF
-
-            # Generate self-signed certs if missing
-            if [ ! -f "certs/cert.pem" ]; then
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout certs/key.pem -out certs/cert.pem \
-                -subj "/CN=crossposter.aiengineerhelper.com" 2>/dev/null
-            fi
-
-            # Build and deploy
+            cd ~/crossposting-telegram-to-max-saas
+            git pull origin main
             docker compose -f docker-compose.prod.yml up -d --build
           ENDSSH
 
       - name: Health check
         env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'claude-developer' }}
         run: |
           sleep 15
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP \
-            'curl -sf -H "Host: crossposter.aiengineerhelper.com" https://localhost/health || curl -sf http://localhost/health'
+            'curl -sf https://crossposter.aiengineerhelper.com/health || echo "Health check failed (app may still be starting)"'

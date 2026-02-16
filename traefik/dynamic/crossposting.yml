@@ -1,5 +1,5 @@
-## Traefik Dynamic Configuration
-## Update the domain name below to match your deployment.
+## Traefik Dynamic Configuration — Crossposting App
+## Routes traffic to crossposter-frontend and crossposter-backend containers.
 
 http:
   routers:
