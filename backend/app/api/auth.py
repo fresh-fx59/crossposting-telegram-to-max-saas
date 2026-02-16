@@ -121,6 +121,33 @@ async def verify_email(
     return MessageResponse(message="Email verified successfully")
 
 
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification(
+    current_user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> MessageResponse:
+    """Resend the email verification link to the current user."""
+    if current_user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified",
+        )
+
+    try:
+        verification_token = await create_verification_token(session, current_user.id)
+        send_verification_email(current_user.email, verification_token)
+        await session.commit()
+        logger.info("Verification email resent to: %s", current_user.email)
+    except Exception as e:
+        logger.warning("Failed to resend verification email to %s: %s", current_user.email, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please try again later.",
+        )
+
+    return MessageResponse(message="Verification email sent. Please check your inbox.")
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(
     user_data: UserLogin,

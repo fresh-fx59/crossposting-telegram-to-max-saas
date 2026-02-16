@@ -24,8 +24,23 @@ export default function Login() {
   const [captchaKey, setCaptchaKey] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
 
   const needVerification = location.state?.needVerification;
+
+  const handleResendVerification = async () => {
+    setResendingEmail(true);
+    setResendSuccess('');
+    try {
+      const res = await authApi.resendVerification();
+      setResendSuccess(res.message);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to resend verification email');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,15 +56,7 @@ export default function Login() {
     try {
       const result = await authApi.login(email, password, captchaToken || 'no-captcha');
       localStorage.setItem('access_token', result.access_token);
-
-      // Check if email is verified
-      const user = await authApi.getMe();
-      if (!user.is_email_verified) {
-        navigate('/login', { state: { needVerification: true } });
-        setError('Please verify your email address');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
       setCaptchaToken('');
@@ -67,8 +74,25 @@ export default function Login() {
         </Typography>
 
         {needVerification && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                disabled={resendingEmail}
+                onClick={handleResendVerification}
+              >
+                {resendingEmail ? 'Sending...' : 'Resend'}
+              </Button>
+            }
+          >
             Your email address needs to be verified. Please check your inbox for the verification link.
+          </Alert>
+        )}
+
+        {resendSuccess && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setResendSuccess('')}>
+            {resendSuccess}
           </Alert>
         )}
 

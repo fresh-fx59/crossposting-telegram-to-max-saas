@@ -115,6 +115,11 @@ export const authApi = {
     return response.data;
   },
 
+  resendVerification: async (): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/resend-verification');
+    return response.data;
+  },
+
   forgotPassword: async (email: string, captchaToken: string): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>('/auth/forgot-password', {
       email,
