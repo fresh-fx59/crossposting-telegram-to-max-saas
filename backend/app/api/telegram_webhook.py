@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..database import get_async_session
 from ..database.models import Connection, Post, TelegramConnection
@@ -22,7 +23,7 @@ async def telegram_webhook(
     webhook_secret: str,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict[str, str]:
+) -> dict:
     """Handle incoming Telegram webhook updates.
 
     Processes channel posts and forwards them to connected Max chats.
@@ -74,6 +75,7 @@ async def telegram_webhook(
     # Find all active connections for this Telegram connection
     result = await session.execute(
         select(Connection)
+        .options(selectinload(Connection.user))
         .where(
             Connection.telegram_connection_id == tg_connection.id,
             Connection.is_active.is_(True),

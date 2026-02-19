@@ -114,13 +114,13 @@ async def can_post_to_connection(
     conn_result = await session.execute(
         select(Conn.user_id).where(Conn.id == connection_id)
     )
-    conn = conn_result.scalar_one_or_none()
+    user_id = conn_result.scalar_one_or_none()
 
-    if conn is None:
+    if user_id is None:
         return False, 0
 
     user_result = await session.execute(
-        select(User.daily_posts_limit).where(User.id == conn.user_id)
+        select(User.daily_posts_limit).where(User.id == user_id)
     )
     limit = user_result.scalar_one_or_none()
 
