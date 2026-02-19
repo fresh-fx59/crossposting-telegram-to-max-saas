@@ -23,6 +23,15 @@ services:
       - crossposter_network
     restart: unless-stopped
 
+  max-api-emulator:
+    build:
+      context: ./max-api-emulator
+      dockerfile: Dockerfile
+    container_name: max-api-emulator
+    networks:
+      - traefik-public
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     container_name: crossposter-postgres

@@ -1,0 +1,22 @@
+## Traefik Dynamic Configuration — Max API Emulator
+## Routes traffic to max-api-emulator container.
+
+http:
+  routers:
+    max-api-emulator:
+      rule: "Host(`max-api-emulator.aiengineerhelper.com`)"
+      entryPoints:
+        - websecure
+      service: max-api-emulator
+      tls: {}
+
+  services:
+    max-api-emulator:
+      loadBalancer:
+        servers:
+          - url: "http://max-api-emulator:8080"
+
+tls:
+  certificates:
+    - certFile: /certs/cert.pem
+      keyFile: /certs/key.pem

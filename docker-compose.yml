@@ -54,6 +54,16 @@ services:
     networks:
       - crossposter-network
 
+  max-api-emulator:
+    build:
+      context: ./max-api-emulator
+      dockerfile: Dockerfile
+    container_name: max-api-emulator
+    ports:
+      - "8090:8080"
+    networks:
+      - crossposter-network
+
   postgres:
     image: postgres:15-alpine
     container_name: crossposter-postgres
