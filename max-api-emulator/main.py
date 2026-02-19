@@ -221,7 +221,7 @@ async def clear_messages():
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     """Real-time dashboard showing received messages."""
-    return """<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -429,7 +429,7 @@ function renderMsg(msg) {
     '</div>' +
     '<div class="msg-body">' + escapeHtml(msg.text || '(no text)') + '</div>' +
     photoHtml +
-    '<button class="toggle-raw" onclick="toggleRaw(\'' + rawId + '\')">show raw</button>' +
+    '<button class="toggle-raw" onclick="toggleRaw(&quot;' + rawId + '&quot;)">show raw</button>' +
     '<div class="msg-raw" id="' + rawId + '">' + escapeHtml(JSON.stringify(msg.raw_body, null, 2)) + '</div>';
 
   return el;
@@ -488,6 +488,8 @@ async function poll() {
     try {
       const res = await fetch('/emulator/messages');
       const data = await res.json();
+      dot.classList.add('connected');
+      txt.textContent = 'Polling (2s)';
       if (data.total === 0 && msgCount > 0) {
         document.getElementById('messageList').innerHTML =
           '<div class="empty" id="emptyState"><p>&#x1F4E1;</p><p>Waiting for messages...</p></div>';
@@ -507,8 +509,6 @@ async function poll() {
         lastMsgId = data.messages[0].id;
         document.getElementById('counter').textContent = msgCount + ' message' + (msgCount !== 1 ? 's' : '');
       }
-      dot.classList.add('connected');
-      txt.textContent = 'Polling (2s)';
     } catch(e) {
       dot.classList.remove('connected');
       txt.textContent = 'Error, retrying...';
@@ -521,3 +521,4 @@ loadExisting().then(() => poll());
 </script>
 </body>
 </html>"""
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
