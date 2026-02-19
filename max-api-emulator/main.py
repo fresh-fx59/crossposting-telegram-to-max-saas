@@ -753,7 +753,7 @@ function renderTokens(tokens) {
       '<div class="config-item">' +
         '<div><span class="label">' + escapeHtml(t.masked) + '</span>' +
         '<span class="detail" style="margin-left:12px;">' + escapeHtml(t.name) + '</span></div>' +
-        '<button class="remove-btn" onclick="removeToken(\'' + escapeAttr(t.token) + '\')">&times;</button>' +
+        '<button class="remove-btn" onclick="removeToken(&quot;' + escapeAttr(t.token) + '&quot;)">&times;</button>' +
       '</div>'
     ).join('');
   }
@@ -791,11 +791,11 @@ async function addToken() {
   loadConfig();
 }
 
-async function removeToken(token) {
+async function removeToken(encodedToken) {
   await fetch('/emulator/config/token', {
     method: 'DELETE',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({token: token})
+    body: JSON.stringify({token: decodeURIComponent(encodedToken)})
   });
   loadConfig();
 }
@@ -857,7 +857,7 @@ function renderMsg(msg) {
     '</div>' +
     '<div class="msg-body">' + escapeHtml(msg.text || '(no text)') + '</div>' +
     photoHtml +
-    '<button class="toggle-raw" onclick="toggleRaw(\'' + rawId + '\')">show raw</button>' +
+    '<button class="toggle-raw" onclick="toggleRaw(&quot;' + rawId + '&quot;)">show raw</button>' +
     '<div class="msg-raw" id="' + rawId + '">' + escapeHtml(JSON.stringify(msg.raw_body, null, 2)) + '</div>';
 
   return el;
@@ -871,7 +871,7 @@ function escapeHtml(s) {
 }
 
 function escapeAttr(s) {
-  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return encodeURIComponent(s);
 }
 
 function toggleRaw(id) {
