@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from .post import PostResponse
+
 
 class TelegramConnectionCreate(BaseModel):
     """Schema for creating a Telegram connection."""
@@ -74,7 +76,7 @@ class ConnectionResponse(BaseModel):
 class ConnectionDetailResponse(ConnectionResponse):
     """Detailed connection response with post history."""
 
-    posts: list["PostResponse"] = []
+    posts: list[PostResponse] = []
 
 
 class TestConnectionRequest(BaseModel):
