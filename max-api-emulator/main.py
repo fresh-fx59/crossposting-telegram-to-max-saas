@@ -188,7 +188,12 @@ async def sse_stream():
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream",
+            "Transfer-Encoding": "chunked",
+        },
     )
 
 
