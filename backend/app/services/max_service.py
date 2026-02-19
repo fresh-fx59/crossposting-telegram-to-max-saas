@@ -44,7 +44,8 @@ async def send_max_text(
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.MAX_API_BASE}/messages",
-                params={"access_token": token, "chat_id": chat_id},
+                params={"chat_id": chat_id},
+                headers={"Authorization": token},
                 json={"text": text},
             )
             resp.raise_for_status()
@@ -78,13 +79,12 @@ async def upload_max_photo(
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.MAX_API_BASE}/uploads",
-                params={
-                    "access_token": token,
-                    "chat_id": chat_id,
-                    "type": "photo",
-                },
+                params={"chat_id": chat_id, "type": "photo"},
                 content=photo_bytes,
-                headers={"Content-Type": "image/jpeg"},
+                headers={
+                    "Authorization": token,
+                    "Content-Type": "image/jpeg",
+                },
             )
             resp.raise_for_status()
             result = resp.json()
@@ -130,7 +130,8 @@ async def send_max_photo(
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.MAX_API_BASE}/messages",
-                params={"access_token": token, "chat_id": chat_id},
+                params={"chat_id": chat_id},
+                headers={"Authorization": token},
                 json=body,
             )
             resp.raise_for_status()
