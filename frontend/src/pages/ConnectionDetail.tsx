@@ -177,13 +177,14 @@ export default function ConnectionDetail() {
                     <TableCell>Max ID</TableCell>
                     <TableCell>Type</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Error</TableCell>
                     <TableCell>Time</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {connection.posts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         <Typography color="text.secondary" sx={{ py: 4 }}>
                           No posts yet
                         </Typography>
@@ -202,6 +203,13 @@ export default function ConnectionDetail() {
                             color={post.status === 'success' ? 'success' : 'error'}
                             size="small"
                           />
+                        </TableCell>
+                        <TableCell>
+                          {post.error_message ? (
+                            <Typography variant="body2" color="error" sx={{ maxWidth: 300, fontSize: '0.8rem' }}>
+                              {post.error_message}
+                            </Typography>
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           {new Date(post.created_at).toLocaleString()}
