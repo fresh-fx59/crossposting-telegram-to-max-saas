@@ -17,15 +17,20 @@ import {
   TableRow,
   Typography,
   Pagination,
-  Drawer,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
   ArrowBack as ArrowBackIcon,
+  Edit as EditIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
@@ -52,6 +57,40 @@ export default function ConnectionDetail() {
       setError(err.response?.data?.detail || 'Failed to load connection');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Edit connection dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editMaxChatId, setEditMaxChatId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editActive, setEditActive] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEditDialog = () => {
+    if (!connection) return;
+    setEditMaxChatId(String(connection.max_chat_id));
+    setEditName(connection.name || '');
+    setEditActive(connection.is_active);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateConnection = async () => {
+    if (!connection) return;
+    setEditSaving(true);
+    try {
+      const data: Partial<{ max_chat_id: number; name: string; is_active: boolean }> = {
+        is_active: editActive,
+      };
+      if (editMaxChatId.trim()) data.max_chat_id = Number(editMaxChatId);
+      if (editName.trim()) data.name = editName.trim();
+      await connectionsApi.updateConnection(connection.id, data);
+      setEditDialogOpen(false);
+      await loadConnection();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update connection');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -107,9 +146,12 @@ export default function ConnectionDetail() {
                 color={connection.is_active ? 'success' : 'error'}
                 size="small"
               />
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
                 <Button variant="contained" onClick={handleTest}>
                   Test Connection
+                </Button>
+                <Button variant="outlined" startIcon={<EditIcon />} onClick={openEditDialog}>
+                  Edit
                 </Button>
                 <Button color="error" onClick={async () => {
                   if (confirm('Delete this connection?')) {
@@ -175,6 +217,44 @@ export default function ConnectionDetail() {
       ) : (
         <Alert severity="info">Connection not found</Alert>
       )}
+
+      {/* Edit Connection Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Connection</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Max Chat ID"
+            fullWidth
+            value={editMaxChatId}
+            onChange={(e) => setEditMaxChatId(e.target.value)}
+            sx={{ mt: 1, mb: 2 }}
+          />
+          <TextField
+            label="Link Name"
+            fullWidth
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={editActive ? 'active' : 'inactive'}
+              label="Status"
+              onChange={(e) => setEditActive(e.target.value === 'active')}
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleUpdateConnection} disabled={editSaving}>
+            {editSaving ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -474,36 +474,50 @@ async function clearMessages() {
   document.getElementById('counter').textContent = '0 messages';
 }
 
-function connectSSE() {
+let lastMsgId = null;
+let pollActive = false;
+
+async function poll() {
   const dot = document.getElementById('statusDot');
   const txt = document.getElementById('statusText');
-  const es = new EventSource('/emulator/stream');
+  pollActive = true;
+  dot.classList.add('connected');
+  txt.textContent = 'Polling (2s)';
 
-  es.onopen = () => {
-    dot.classList.add('connected');
-    txt.textContent = 'Connected';
-  };
-  es.onmessage = (e) => {
-    const evt = JSON.parse(e.data);
-    if (evt.type === 'message') {
-      addMessage(evt.data);
-    } else if (evt.type === 'cleared') {
-      document.getElementById('messageList').innerHTML =
-        '<div class="empty" id="emptyState"><p>📡</p><p>Waiting for messages...</p></div>';
-      msgCount = 0;
-      document.getElementById('counter').textContent = '0 messages';
+  while (pollActive) {
+    try {
+      const res = await fetch('/emulator/messages');
+      const data = await res.json();
+      if (data.total === 0 && msgCount > 0) {
+        document.getElementById('messageList').innerHTML =
+          '<div class="empty" id="emptyState"><p>&#x1F4E1;</p><p>Waiting for messages...</p></div>';
+        msgCount = 0;
+        lastMsgId = null;
+        document.getElementById('counter').textContent = '0 messages';
+      } else if (data.total > 0 && data.messages[0].id !== lastMsgId) {
+        const list = document.getElementById('messageList');
+        const empty = document.getElementById('emptyState');
+        if (empty) empty.remove();
+        list.innerHTML = '';
+        msgCount = 0;
+        data.messages.forEach(m => {
+          list.appendChild(renderMsg(m));
+          msgCount++;
+        });
+        lastMsgId = data.messages[0].id;
+        document.getElementById('counter').textContent = msgCount + ' message' + (msgCount !== 1 ? 's' : '');
+      }
+      dot.classList.add('connected');
+      txt.textContent = 'Polling (2s)';
+    } catch(e) {
+      dot.classList.remove('connected');
+      txt.textContent = 'Error, retrying...';
     }
-  };
-  es.onerror = () => {
-    dot.classList.remove('connected');
-    txt.textContent = 'Reconnecting...';
-    es.close();
-    setTimeout(connectSSE, 3000);
-  };
+    await new Promise(r => setTimeout(r, 2000));
+  }
 }
 
-loadExisting();
-connectSSE();
+loadExisting().then(() => poll());
 </script>
 </body>
 </html>"""

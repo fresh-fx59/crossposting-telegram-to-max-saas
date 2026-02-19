@@ -28,6 +28,7 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   LinkOff as LinkOffIcon,
   Link as LinkIcon,
   Telegram as TelegramIcon,
@@ -144,6 +145,40 @@ export default function Dashboard() {
       await loadData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete channel');
+    }
+  };
+
+  // Edit Telegram Channel dialog state
+  const [editTgDialogOpen, setEditTgDialogOpen] = useState(false);
+  const [editTgId, setEditTgId] = useState<number | null>(null);
+  const [editTgUsername, setEditTgUsername] = useState('');
+  const [editTgBotToken, setEditTgBotToken] = useState('');
+  const [editTgActive, setEditTgActive] = useState(true);
+  const [editTgSaving, setEditTgSaving] = useState(false);
+
+  const openEditTgDialog = (tg: TelegramConnection) => {
+    setEditTgId(tg.id);
+    setEditTgUsername(tg.telegram_channel_username || '');
+    setEditTgBotToken('');
+    setEditTgActive(tg.is_active);
+    setEditTgDialogOpen(true);
+  };
+
+  const handleUpdateTelegramChannel = async () => {
+    if (!editTgId) return;
+    setEditTgSaving(true);
+    try {
+      const data: Partial<{ telegram_channel_username: string; bot_token: string; is_active: boolean }> = {};
+      if (editTgUsername.trim()) data.telegram_channel_username = editTgUsername.trim();
+      if (editTgBotToken.trim()) data.bot_token = editTgBotToken.trim();
+      data.is_active = editTgActive;
+      await connectionsApi.updateTelegramConnection(editTgId, data);
+      setEditTgDialogOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update Telegram channel');
+    } finally {
+      setEditTgSaving(false);
     }
   };
 
@@ -398,6 +433,12 @@ export default function Dashboard() {
                             </Box>
                             <IconButton
                               size="small"
+                              onClick={() => openEditTgDialog(tg)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => handleDeleteTelegramChannel(tg.id)}
                             >
@@ -518,6 +559,46 @@ export default function Dashboard() {
               {creating ? 'Creating...' : 'Create Link'}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Telegram Channel Dialog */}
+      <Dialog open={editTgDialogOpen} onClose={() => setEditTgDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Telegram Channel</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Channel Username"
+            placeholder="@yourchannel"
+            fullWidth
+            value={editTgUsername}
+            onChange={(e) => setEditTgUsername(e.target.value)}
+            sx={{ mt: 1, mb: 2 }}
+          />
+          <TextField
+            label="Bot Token (leave empty to keep current)"
+            placeholder="From @BotFather"
+            fullWidth
+            value={editTgBotToken}
+            onChange={(e) => setEditTgBotToken(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={editTgActive ? 'active' : 'inactive'}
+              label="Status"
+              onChange={(e) => setEditTgActive(e.target.value === 'active')}
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTgDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleUpdateTelegramChannel} disabled={editTgSaving}>
+            {editTgSaving ? 'Saving...' : 'Save'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
