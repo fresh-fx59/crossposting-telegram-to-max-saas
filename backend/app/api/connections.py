@@ -53,21 +53,17 @@ async def create_telegram_connection(
     # Validate bot token with Telegram API
     bot_info = await get_telegram_bot_info(data.bot_token)
 
-    # Get channel ID from username
-    channel_id = await get_telegram_bot_info(data.bot_token)
-    # For channel posts, we need the channel ID
-    # The username is stored for reference
     username = data.telegram_channel_username.lstrip("@")
 
+    # Resolve actual channel ID from username via Telegram API
     try:
-        channel_info = await get_telegram_bot_info(data.bot_token)
-        # bot_info gives bot's info, we assume channel_id comes from the username
-        # In real implementation, would call getChat with username
-        channel_id = 100  # Placeholder - would be actual channel ID from getChat
+        from ..services.telegram_service import get_channel_id_from_username
+
+        channel_id = await get_channel_id_from_username(data.bot_token, username)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to get channel info: {str(e)}",
+            detail=f"Failed to get channel info. Make sure the bot is an admin in @{username}: {str(e)}",
         ) from e
 
     # Generate webhook secret
