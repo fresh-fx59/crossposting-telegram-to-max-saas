@@ -39,8 +39,8 @@ export default function Navbar() {
                 <Button color="inherit" component={RouterLink} to="/dashboard">
                   Dashboard
                 </Button>
-                <Button color="inherit" component={RouterLink} to="/settings">
-                  Settings
+                <Button color="inherit" component={RouterLink} to="/account">
+                  Account
                 </Button>
                 <Button color="inherit" onClick={handleLogout}>
                   Logout

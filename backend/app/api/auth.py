@@ -208,8 +208,6 @@ async def get_current_user_info(
     return UserResponse(
         id=current_user_obj.id,
         email=current_user_obj.email,
-        max_token_set=bool(current_user_obj.max_token),
-        max_chat_id=current_user_obj.max_chat_id,
         connections_limit=current_user_obj.connections_limit,
         daily_posts_limit=current_user_obj.daily_posts_limit,
         is_email_verified=current_user_obj.is_email_verified,

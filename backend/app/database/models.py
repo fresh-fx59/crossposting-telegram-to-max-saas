@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from .models import Connection, EmailVerificationToken, Post, TelegramConnection  # noqa: F401, PLW0406
+    from .models import Connection, EmailVerificationToken, MaxChannel, Post, TelegramConnection  # noqa: F401, PLW0406
 
 
 class User(Base, TimestampMixin):
@@ -30,8 +30,6 @@ class User(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
-    max_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # Encrypted
-    max_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     connections_limit: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     daily_posts_limit: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -44,6 +42,11 @@ class User(Base, TimestampMixin):
     )
     telegram_connections: Mapped[list["TelegramConnection"]] = relationship(
         "TelegramConnection",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    max_channels: Mapped[list["MaxChannel"]] = relationship(
+        "MaxChannel",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -100,6 +103,32 @@ class TelegramConnection(Base, TimestampMixin):
     )
 
 
+class MaxChannel(Base, TimestampMixin):
+    """Max messenger channel (destination) model."""
+
+    __tablename__ = "max_channels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    bot_token: Mapped[str] = mapped_column(Text, nullable=False)  # Encrypted
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="max_channels")
+    connections: Mapped[list["Connection"]] = relationship(
+        "Connection",
+        back_populates="max_channel",
+        cascade="all, delete-orphan",
+    )
+
+
 class Connection(Base, TimestampMixin):
     """Telegram to Max connection mapping model."""
 
@@ -116,7 +145,11 @@ class Connection(Base, TimestampMixin):
         ForeignKey("telegram_connections.id", ondelete="CASCADE"),
         nullable=False,
     )
-    max_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    max_channel_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("max_channels.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -124,6 +157,10 @@ class Connection(Base, TimestampMixin):
     user: Mapped["User"] = relationship("User", back_populates="connections")
     telegram_connection: Mapped["TelegramConnection"] = relationship(
         "TelegramConnection",
+        back_populates="connections",
+    )
+    max_channel: Mapped["MaxChannel"] = relationship(
+        "MaxChannel",
         back_populates="connections",
     )
     posts: Mapped[list["Post"]] = relationship(

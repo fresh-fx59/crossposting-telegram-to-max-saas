@@ -4,15 +4,11 @@ import axios, { AxiosError, type AxiosInstance } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Add auth token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -21,7 +17,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
@@ -37,8 +32,6 @@ api.interceptors.response.use(
 export interface User {
   id: number;
   email: string;
-  max_token_set: boolean;
-  max_chat_id: number | null;
   connections_limit: number;
   daily_posts_limit: number;
   is_email_verified: boolean;
@@ -59,12 +52,23 @@ export interface TelegramConnection {
   created_at: string;
 }
 
+export interface MaxChannel {
+  id: number;
+  chat_id: number;
+  name: string | null;
+  bot_token_set: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Connection {
   id: number;
   telegram_connection_id: number;
   telegram_channel_id: number;
   telegram_channel_username: string | null;
+  max_channel_id: number;
   max_chat_id: number;
+  max_channel_name: string | null;
   name: string | null;
   is_active: boolean;
   created_at: string;
@@ -89,18 +93,14 @@ export interface ConnectionDetail extends Connection {
 export const authApi = {
   register: async (email: string, password: string, captchaToken: string): Promise<AuthTokens> => {
     const response = await api.post<AuthTokens>('/auth/register', {
-      email,
-      password,
-      captcha_token: captchaToken,
+      email, password, captcha_token: captchaToken,
     });
     return response.data;
   },
 
   login: async (email: string, password: string, captchaToken: string): Promise<AuthTokens> => {
     const response = await api.post<AuthTokens>('/auth/login', {
-      email,
-      password,
-      captcha_token: captchaToken,
+      email, password, captcha_token: captchaToken,
     });
     return response.data;
   },
@@ -122,16 +122,14 @@ export const authApi = {
 
   forgotPassword: async (email: string, captchaToken: string): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>('/auth/forgot-password', {
-      email,
-      captcha_token: captchaToken,
+      email, captcha_token: captchaToken,
     });
     return response.data;
   },
 
   resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>('/auth/reset-password', {
-      token,
-      new_password: newPassword,
+      token, new_password: newPassword,
     });
     return response.data;
   },
@@ -173,15 +171,56 @@ export const connectionsApi = {
     await api.delete(`/api/connections/telegram/${id}`);
   },
 
-  // Connections
+  // Max channels
+  createMaxChannel: async (
+    botToken: string,
+    chatId: number,
+    name?: string
+  ): Promise<MaxChannel> => {
+    const response = await api.post<MaxChannel>('/api/connections/max', {
+      bot_token: botToken,
+      chat_id: chatId,
+      name,
+    });
+    return response.data;
+  },
+
+  listMaxChannels: async (): Promise<MaxChannel[]> => {
+    const response = await api.get<MaxChannel[]>('/api/connections/max');
+    return response.data;
+  },
+
+  updateMaxChannel: async (
+    id: number,
+    data: Partial<{ bot_token: string; chat_id: number; name: string; is_active: boolean }>
+  ): Promise<MaxChannel> => {
+    const response = await api.put<MaxChannel>(`/api/connections/max/${id}`, data);
+    return response.data;
+  },
+
+  deleteMaxChannel: async (id: number): Promise<void> => {
+    await api.delete(`/api/connections/max/${id}`);
+  },
+
+  testMaxChannel: async (id: number, testMessage?: string): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await api.post(`/api/connections/max/${id}/test`, null, {
+      params: testMessage ? { test_message: testMessage } : {},
+    });
+    return response.data;
+  },
+
+  // Connections (links)
   createConnection: async (
     telegramConnectionId: number,
-    maxChatId: number,
+    maxChannelId: number,
     name?: string
   ): Promise<Connection> => {
     const response = await api.post<Connection>('/api/connections', {
       telegram_connection_id: telegramConnectionId,
-      max_chat_id: maxChatId,
+      max_channel_id: maxChannelId,
       name,
     });
     return response.data;
@@ -201,7 +240,7 @@ export const connectionsApi = {
 
   updateConnection: async (
     id: number,
-    data: Partial<{ max_chat_id: number; name: string; is_active: boolean }>
+    data: Partial<{ max_channel_id: number; name: string; is_active: boolean }>
   ): Promise<Connection> => {
     const response = await api.put<Connection>(`/api/connections/${id}`, data);
     return response.data;
@@ -218,24 +257,6 @@ export const connectionsApi = {
   }> => {
     const response = await api.post(`/api/connections/${id}/test`, null, {
       params: testMessage ? { test_message: testMessage } : {},
-    });
-    return response.data;
-  },
-};
-
-// Users API
-export const usersApi = {
-  updateMe: async (maxToken: string | null = null, maxChatId: number | null = null): Promise<User> => {
-    const response = await api.put<User>('/api/users/me', {
-      max_token: maxToken,
-      max_chat_id: maxChatId,
-    });
-    return response.data;
-  },
-
-  testMax: async (testMessage: string = 'Test message from Telegram Crossposter'): Promise<{ message: string }> => {
-    const response = await api.post<{ message: string }>('/api/users/me/test-max', null, {
-      params: { test_message: testMessage },
     });
     return response.data;
   },

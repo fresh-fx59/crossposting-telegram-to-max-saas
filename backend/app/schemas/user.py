@@ -26,20 +26,11 @@ class UserLogin(UserBase):
     captcha_token: str = Field(..., min_length=1)
 
 
-class UserUpdate(BaseModel):
-    """Schema for updating user settings."""
-
-    max_token: str | None = Field(None, min_length=1)
-    max_chat_id: int | None = None
-
-
 class UserResponse(BaseModel):
     """Schema for user response."""
 
     id: int
     email: str
-    max_token_set: bool = Field(default=False, description="Whether max token is set (not the actual token)")
-    max_chat_id: int | None = None
     connections_limit: int
     daily_posts_limit: int
     is_email_verified: bool

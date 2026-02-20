@@ -16,7 +16,6 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Pagination,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -36,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import { connectionsApi, type ConnectionDetail } from '../services/api';
 
-export default function ConnectionDetail() {
+export default function ConnectionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [connection, setConnection] = useState<ConnectionDetail | null>(null);
@@ -62,14 +61,12 @@ export default function ConnectionDetail() {
 
   // Edit connection dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editMaxChatId, setEditMaxChatId] = useState('');
   const [editName, setEditName] = useState('');
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
 
   const openEditDialog = () => {
     if (!connection) return;
-    setEditMaxChatId(String(connection.max_chat_id));
     setEditName(connection.name || '');
     setEditActive(connection.is_active);
     setEditDialogOpen(true);
@@ -79,10 +76,9 @@ export default function ConnectionDetail() {
     if (!connection) return;
     setEditSaving(true);
     try {
-      const data: Partial<{ max_chat_id: number; name: string; is_active: boolean }> = {
+      const data: Partial<{ name: string; is_active: boolean }> = {
         is_active: editActive,
       };
-      if (editMaxChatId.trim()) data.max_chat_id = Number(editMaxChatId);
       if (editName.trim()) data.name = editName.trim();
       await connectionsApi.updateConnection(connection.id, data);
       setEditDialogOpen(false);
@@ -138,7 +134,7 @@ export default function ConnectionDetail() {
                 Telegram: @{connection.telegram_channel_username || connection.telegram_channel_id}
               </Typography>
               <Typography color="text.secondary" gutterBottom>
-                Max Chat: {connection.max_chat_id}
+                Max: {connection.max_channel_name || `Chat ${connection.max_chat_id}`}
               </Typography>
               <Chip
                 icon={connection.is_active ? <CheckCircleIcon /> : <ErrorIcon />}
@@ -231,18 +227,11 @@ export default function ConnectionDetail() {
         <DialogTitle>Edit Connection</DialogTitle>
         <DialogContent>
           <TextField
-            label="Max Chat ID"
-            fullWidth
-            value={editMaxChatId}
-            onChange={(e) => setEditMaxChatId(e.target.value)}
-            sx={{ mt: 1, mb: 2 }}
-          />
-          <TextField
             label="Link Name"
             fullWidth
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            sx={{ mb: 2 }}
+            sx={{ mt: 1, mb: 2 }}
           />
           <FormControl fullWidth>
             <InputLabel>Status</InputLabel>

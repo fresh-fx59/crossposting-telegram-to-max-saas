@@ -47,3 +47,29 @@ CI/CD: GitHub Actions (`.github/workflows/deploy.yml`) does `git pull` + `docker
 **Frontend build**: `VITE_API_URL` is baked at Docker build time via `ARG` in `frontend/Dockerfile`. The API client (`frontend/src/services/api.ts`) uses this as the axios `baseURL`.
 
 **Backend config**: Pydantic Settings loads from `.env` file. `JWT_SECRET_KEY` and `ENCRYPTION_KEY` have `min_length=32` validation.
+
+## Data Model
+
+- **User**: email, hashed_password, connections_limit, daily_posts_limit
+- **TelegramConnection**: user_id, telegram_channel_id, bot_token (encrypted), webhook_secret, webhook_url
+- **MaxChannel**: user_id, bot_token (encrypted), chat_id, name — each Max channel stores its own bot credentials
+- **Connection** (Link): user_id, telegram_connection_id (FK), max_channel_id (FK), name — links a Telegram source to a Max destination
+- **Post**: connection_id, telegram_message_id, max_message_id, content_type, status, error_message
+
+Users can have multiple Telegram channels and multiple Max channels. Connections (links) map any Telegram channel to any Max channel.
+
+## API Routes
+
+- `/auth/*` — registration, login, logout, email verification, password reset
+- `/api/connections/telegram` — CRUD for Telegram channel connections
+- `/api/connections/max` — CRUD for Max channels + test endpoint
+- `/api/connections` — CRUD for links (Telegram → Max) + test endpoint
+- `/webhook/telegram/{secret}` — incoming Telegram webhook handler
+
+## Frontend Pages
+
+- `/` — Landing page
+- `/login`, `/register`, `/verify-email` — Auth pages
+- `/dashboard` — Main page with 3 sections: Telegram Channels, Max Channels, Links
+- `/connections/:id` — Connection detail with post history
+- `/account` — Account info and logout

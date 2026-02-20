@@ -1,33 +1,36 @@
 """Connection management API routes."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..config import settings
 from ..database import get_async_session
-from ..database.models import Connection, TelegramConnection, User
+from ..database.models import Connection, MaxChannel, TelegramConnection
 from ..schemas.connection import (
     ConnectionCreate,
     ConnectionDetailResponse,
     ConnectionResponse,
     ConnectionUpdate,
+    MaxChannelCreate,
+    MaxChannelResponse,
+    MaxChannelUpdate,
     TelegramConnectionCreate,
     TelegramConnectionResponse,
     TelegramConnectionUpdate,
     TestConnectionResponse,
 )
-from ..schemas.post import PostListResponse, PostResponse
+from ..schemas.post import PostResponse
 from ..services.crypto import decrypt_token, encrypt_token
 from ..services.limit_service import (
-    can_post_to_connection,
     cleanup_old_post_counts,
     cleanup_old_posts,
-    get_remaining_connections,
     get_post_history,
+    get_remaining_connections,
 )
 from ..services.max_service import send_test_message
 from ..services.telegram_service import (
@@ -39,10 +42,14 @@ from ..services.telegram_service import (
 
 from .deps import CurrentUser, VerifiedUserOptional
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
-# Telegram Connections
+# ── Telegram Connections ───────────────────────────────────────────
+
+
 @router.post("/telegram", response_model=TelegramConnectionResponse, status_code=status.HTTP_201_CREATED)
 async def create_telegram_connection(
     data: TelegramConnectionCreate,
@@ -50,15 +57,12 @@ async def create_telegram_connection(
     current_user: CurrentUser,
 ) -> TelegramConnectionResponse:
     """Create a new Telegram bot connection."""
-    # Validate bot token with Telegram API
     bot_info = await get_telegram_bot_info(data.bot_token)
 
     username = data.telegram_channel_username.lstrip("@")
 
-    # Resolve actual channel ID from username via Telegram API
     try:
         from ..services.telegram_service import get_channel_id_from_username
-
         channel_id = await get_channel_id_from_username(data.bot_token, username)
     except Exception as e:
         raise HTTPException(
@@ -66,16 +70,12 @@ async def create_telegram_connection(
             detail=f"Failed to get channel info. Make sure the bot is an admin in @{username}: {str(e)}",
         ) from e
 
-    # Generate webhook secret
     from ..services.telegram_service import generate_webhook_secret
-
     webhook_secret = generate_webhook_secret()
     webhook_url = f"{settings.WEBHOOK_BASE_URL}/webhook/telegram/{webhook_secret}"
 
-    # Encrypt bot token
     encrypted_token = encrypt_token(data.bot_token)
 
-    # Create Telegram connection
     tg_connection = TelegramConnection(
         user_id=current_user.id,
         telegram_channel_id=channel_id,
@@ -87,7 +87,6 @@ async def create_telegram_connection(
     session.add(tg_connection)
     await session.flush()
 
-    # Set up webhook with Telegram
     try:
         await set_webhook(data.bot_token, webhook_url)
         tg_connection.webhook_url = webhook_url
@@ -117,12 +116,9 @@ async def list_telegram_connections(
     current_user: CurrentUser,
 ) -> list[TelegramConnectionResponse]:
     """List all Telegram connections for the current user."""
-
-    current_user_obj = current_user
-
     result = await session.execute(
         select(TelegramConnection)
-        .where(TelegramConnection.user_id == current_user_obj.id)
+        .where(TelegramConnection.user_id == current_user.id)
         .order_by(TelegramConnection.created_at.desc())
     )
     connections = result.scalars().all()
@@ -148,14 +144,10 @@ async def update_telegram_connection(
     current_user: CurrentUser,
 ) -> TelegramConnectionResponse:
     """Update a Telegram connection."""
-
-    current_user_obj = current_user
-
-    # Find connection
     result = await session.execute(
         select(TelegramConnection).where(
             TelegramConnection.id == telegram_connection_id,
-            TelegramConnection.user_id == current_user_obj.id,
+            TelegramConnection.user_id == current_user.id,
         )
     )
     tg_connection = result.scalar_one_or_none()
@@ -166,12 +158,10 @@ async def update_telegram_connection(
             detail="Telegram connection not found",
         )
 
-    # Update fields
     if data.telegram_channel_username is not None:
         tg_connection.telegram_channel_username = data.telegram_channel_username.lstrip("@")
     if data.bot_token is not None:
-        encrypted_token = encrypt_token(data.bot_token)
-        tg_connection.bot_token = encrypted_token
+        tg_connection.bot_token = encrypt_token(data.bot_token)
     if data.is_active is not None:
         tg_connection.is_active = data.is_active
 
@@ -195,14 +185,10 @@ async def delete_telegram_connection(
     current_user: CurrentUser,
 ) -> None:
     """Delete a Telegram connection and remove webhook."""
-
-    current_user_obj = current_user
-
-    # Find connection
     result = await session.execute(
         select(TelegramConnection).where(
             TelegramConnection.id == telegram_connection_id,
-            TelegramConnection.user_id == current_user_obj.id,
+            TelegramConnection.user_id == current_user.id,
         )
     )
     tg_connection = result.scalar_one_or_none()
@@ -213,80 +199,251 @@ async def delete_telegram_connection(
             detail="Telegram connection not found",
         )
 
-    # Decrypt token and delete webhook
     bot_token = decrypt_token(tg_connection.bot_token)
     try:
         await delete_webhook(bot_token)
     except Exception as e:
         logger.error("Failed to delete webhook: %s", e)
 
-    # Delete connection (cascades to Connection, Post, etc.)
     await session.delete(tg_connection)
     await session.commit()
 
 
-# Connections (Telegram -> Max mappings)
+# ── Max Channels ───────────────────────────────────────────────────
+
+
+@router.post("/max", response_model=MaxChannelResponse, status_code=status.HTTP_201_CREATED)
+async def create_max_channel(
+    data: MaxChannelCreate,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentUser,
+) -> MaxChannelResponse:
+    """Create a new Max channel."""
+    encrypted_token = encrypt_token(data.bot_token)
+
+    channel = MaxChannel(
+        user_id=current_user.id,
+        bot_token=encrypted_token,
+        chat_id=data.chat_id,
+        name=data.name,
+    )
+    session.add(channel)
+    await session.commit()
+    await session.refresh(channel)
+
+    return MaxChannelResponse(
+        id=channel.id,
+        chat_id=channel.chat_id,
+        name=channel.name,
+        bot_token_set=True,
+        is_active=channel.is_active,
+        created_at=channel.created_at,
+    )
+
+
+@router.get("/max", response_model=list[MaxChannelResponse])
+async def list_max_channels(
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentUser,
+) -> list[MaxChannelResponse]:
+    """List all Max channels for the current user."""
+    result = await session.execute(
+        select(MaxChannel)
+        .where(MaxChannel.user_id == current_user.id)
+        .order_by(MaxChannel.created_at.desc())
+    )
+    channels = result.scalars().all()
+
+    return [
+        MaxChannelResponse(
+            id=c.id,
+            chat_id=c.chat_id,
+            name=c.name,
+            bot_token_set=bool(c.bot_token),
+            is_active=c.is_active,
+            created_at=c.created_at,
+        )
+        for c in channels
+    ]
+
+
+@router.put("/max/{max_channel_id}", response_model=MaxChannelResponse)
+async def update_max_channel(
+    max_channel_id: int,
+    data: MaxChannelUpdate,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentUser,
+) -> MaxChannelResponse:
+    """Update a Max channel."""
+    result = await session.execute(
+        select(MaxChannel).where(
+            MaxChannel.id == max_channel_id,
+            MaxChannel.user_id == current_user.id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+
+    if channel is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Max channel not found",
+        )
+
+    if data.bot_token is not None:
+        channel.bot_token = encrypt_token(data.bot_token)
+    if data.chat_id is not None:
+        channel.chat_id = data.chat_id
+    if data.name is not None:
+        channel.name = data.name
+    if data.is_active is not None:
+        channel.is_active = data.is_active
+
+    await session.commit()
+    await session.refresh(channel)
+
+    return MaxChannelResponse(
+        id=channel.id,
+        chat_id=channel.chat_id,
+        name=channel.name,
+        bot_token_set=bool(channel.bot_token),
+        is_active=channel.is_active,
+        created_at=channel.created_at,
+    )
+
+
+@router.delete("/max/{max_channel_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_max_channel(
+    max_channel_id: int,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentUser,
+) -> None:
+    """Delete a Max channel."""
+    result = await session.execute(
+        select(MaxChannel).where(
+            MaxChannel.id == max_channel_id,
+            MaxChannel.user_id == current_user.id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+
+    if channel is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Max channel not found",
+        )
+
+    await session.delete(channel)
+    await session.commit()
+
+
+@router.post("/max/{max_channel_id}/test", response_model=TestConnectionResponse)
+async def test_max_channel(
+    max_channel_id: int,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentUser,
+    test_message: str = "Test message from Telegram Crossposter",
+) -> TestConnectionResponse:
+    """Send a test message to a Max channel."""
+    result = await session.execute(
+        select(MaxChannel).where(
+            MaxChannel.id == max_channel_id,
+            MaxChannel.user_id == current_user.id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+
+    if channel is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Max channel not found",
+        )
+
+    max_token = decrypt_token(channel.bot_token)
+
+    try:
+        await send_test_message(max_token, channel.chat_id, test_message)
+        return TestConnectionResponse(success=True, message="Test message sent successfully")
+    except Exception as e:
+        return TestConnectionResponse(success=False, message=f"Failed: {str(e)}")
+
+
+# ── Connections (Links: Telegram → Max) ────────────────────────────
+
+
+def _connection_response(connection: Connection) -> ConnectionResponse:
+    """Build ConnectionResponse from a loaded Connection object."""
+    return ConnectionResponse(
+        id=connection.id,
+        telegram_connection_id=connection.telegram_connection_id,
+        telegram_channel_id=connection.telegram_connection.telegram_channel_id,
+        telegram_channel_username=connection.telegram_connection.telegram_channel_username,
+        max_channel_id=connection.max_channel_id,
+        max_chat_id=connection.max_channel.chat_id,
+        max_channel_name=connection.max_channel.name,
+        name=connection.name,
+        is_active=connection.is_active,
+        created_at=connection.created_at,
+    )
+
+
 @router.post("", response_model=ConnectionResponse, status_code=status.HTTP_201_CREATED)
 async def create_connection(
     data: ConnectionCreate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: VerifiedUserOptional,
 ) -> ConnectionResponse:
-    """Create a new connection (Telegram channel -> Max chat mapping)."""
-
-    current_user_obj = current_user
-
-    # Check email verification
-    if not current_user_obj.is_email_verified:
+    """Create a new link (Telegram channel -> Max channel)."""
+    if not current_user.is_email_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email verification required. Please verify your email address.",
+            detail="Email verification required.",
         )
 
-    # Check connection limit
-    remaining = await get_remaining_connections(session, current_user_obj.id)
+    remaining = await get_remaining_connections(session, current_user.id)
     if remaining <= 0:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Connection limit reached. Maximum {settings.MAX_CONNECTIONS_PER_USER} connections allowed.",
+            detail=f"Connection limit reached ({settings.MAX_CONNECTIONS_PER_USER}).",
         )
 
-    # Verify Telegram connection exists and belongs to user
+    # Verify Telegram connection belongs to user
     tg_result = await session.execute(
         select(TelegramConnection).where(
             TelegramConnection.id == data.telegram_connection_id,
-            TelegramConnection.user_id == current_user_obj.id,
+            TelegramConnection.user_id == current_user.id,
         )
     )
-    tg_connection = tg_result.scalar_one_or_none()
+    if tg_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Telegram connection not found")
 
-    if tg_connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Telegram connection not found",
+    # Verify Max channel belongs to user
+    max_result = await session.execute(
+        select(MaxChannel).where(
+            MaxChannel.id == data.max_channel_id,
+            MaxChannel.user_id == current_user.id,
         )
+    )
+    if max_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Max channel not found")
 
-    # Create connection
     connection = Connection(
-        user_id=current_user_obj.id,
+        user_id=current_user.id,
         telegram_connection_id=data.telegram_connection_id,
-        max_chat_id=data.max_chat_id,
+        max_channel_id=data.max_channel_id,
         name=data.name,
     )
     session.add(connection)
     await session.commit()
-    await session.refresh(connection)
 
-    return ConnectionResponse(
-        id=connection.id,
-        telegram_connection_id=connection.telegram_connection_id,
-        telegram_channel_id=tg_connection.telegram_channel_id,
-        telegram_channel_username=tg_connection.telegram_channel_username,
-        max_chat_id=connection.max_chat_id,
-        name=connection.name,
-        is_active=connection.is_active,
-        created_at=connection.created_at,
+    # Reload with relationships
+    result = await session.execute(
+        select(Connection)
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.id == connection.id)
     )
+    connection = result.scalar_one()
+
+    return _connection_response(connection)
 
 
 @router.get("", response_model=list[ConnectionResponse])
@@ -295,30 +452,15 @@ async def list_connections(
     current_user: CurrentUser,
 ) -> list[ConnectionResponse]:
     """List all connections for the current user."""
-
-    current_user_obj = current_user
-
     result = await session.execute(
         select(Connection)
-        .options(selectinload(Connection.telegram_connection))
-        .where(Connection.user_id == current_user_obj.id)
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.user_id == current_user.id)
         .order_by(Connection.created_at.desc())
     )
     connections = result.scalars().all()
 
-    return [
-        ConnectionResponse(
-            id=c.id,
-            telegram_connection_id=c.telegram_connection_id,
-            telegram_channel_id=c.telegram_connection.telegram_channel_id,
-            telegram_channel_username=c.telegram_connection.telegram_channel_username,
-            max_chat_id=c.max_chat_id,
-            name=c.name,
-            is_active=c.is_active,
-            created_at=c.created_at,
-        )
-        for c in connections
-    ]
+    return [_connection_response(c) for c in connections]
 
 
 @router.get("/{connection_id}", response_model=ConnectionDetailResponse)
@@ -330,39 +472,22 @@ async def get_connection(
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ConnectionDetailResponse:
     """Get connection details with post history."""
-
-    current_user_obj = current_user
-
-    # Find connection
     result = await session.execute(
         select(Connection)
-        .options(selectinload(Connection.telegram_connection))
-        .where(
-            Connection.id == connection_id,
-            Connection.user_id == current_user_obj.id,
-        )
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.id == connection_id, Connection.user_id == current_user.id)
     )
     connection = result.scalar_one_or_none()
 
     if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Connection not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
 
-    # Get post history
     offset = (page - 1) * page_size
     posts, total = await get_post_history(session, connection_id, page_size, offset)
 
+    resp = _connection_response(connection)
     return ConnectionDetailResponse(
-        id=connection.id,
-        telegram_connection_id=connection.telegram_connection_id,
-        telegram_channel_id=connection.telegram_connection.telegram_channel_id,
-        telegram_channel_username=connection.telegram_connection.telegram_channel_username,
-        max_chat_id=connection.max_chat_id,
-        name=connection.name,
-        is_active=connection.is_active,
-        created_at=connection.created_at,
+        **resp.model_dump(),
         posts=[
             PostResponse(
                 id=p.id,
@@ -387,49 +512,43 @@ async def update_connection(
     current_user: CurrentUser,
 ) -> ConnectionResponse:
     """Update a connection."""
-
-    current_user_obj = current_user
-
-    # Find connection
     result = await session.execute(
         select(Connection)
-        .options(selectinload(Connection.telegram_connection))
-        .where(
-            Connection.id == connection_id,
-            Connection.user_id == current_user_obj.id,
-        )
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.id == connection_id, Connection.user_id == current_user.id)
     )
     connection = result.scalar_one_or_none()
 
     if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Connection not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
 
-    # Update fields
-    if data.max_chat_id is not None:
-        connection.max_chat_id = data.max_chat_id
+    if data.max_channel_id is not None:
+        # Verify new Max channel belongs to user
+        max_result = await session.execute(
+            select(MaxChannel).where(
+                MaxChannel.id == data.max_channel_id,
+                MaxChannel.user_id == current_user.id,
+            )
+        )
+        if max_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Max channel not found")
+        connection.max_channel_id = data.max_channel_id
     if data.name is not None:
         connection.name = data.name
     if data.is_active is not None:
         connection.is_active = data.is_active
 
     await session.commit()
-    await session.refresh(connection)
 
-    tg_connection = connection.telegram_connection
-
-    return ConnectionResponse(
-        id=connection.id,
-        telegram_connection_id=connection.telegram_connection_id,
-        telegram_channel_id=tg_connection.telegram_channel_id,
-        telegram_channel_username=tg_connection.telegram_channel_username,
-        max_chat_id=connection.max_chat_id,
-        name=connection.name,
-        is_active=connection.is_active,
-        created_at=connection.created_at,
+    # Reload with relationships
+    result = await session.execute(
+        select(Connection)
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.id == connection.id)
     )
+    connection = result.scalar_one()
+
+    return _connection_response(connection)
 
 
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -439,25 +558,17 @@ async def delete_connection(
     current_user: CurrentUser,
 ) -> None:
     """Delete a connection."""
-
-    current_user_obj = current_user
-
-    # Find connection
     result = await session.execute(
         select(Connection).where(
             Connection.id == connection_id,
-            Connection.user_id == current_user_obj.id,
+            Connection.user_id == current_user.id,
         )
     )
     connection = result.scalar_one_or_none()
 
     if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Connection not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
 
-    # Delete connection (cascades to Post, DailyPostCount)
     await session.delete(connection)
     await session.commit()
 
@@ -470,36 +581,21 @@ async def test_connection(
     test_message: str = "Test message from Telegram Crossposter",
 ) -> TestConnectionResponse:
     """Test sending a message to Max via the connection."""
-
-    current_user_obj = current_user
-
-    # Check if Max credentials are set
-    if not current_user_obj.max_token or not current_user_obj.max_chat_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Max credentials not configured. Please add your Max bot token and chat ID first.",
-        )
-
-    # Find connection
     result = await session.execute(
-        select(Connection).where(
-            Connection.id == connection_id,
-            Connection.user_id == current_user_obj.id,
-        )
+        select(Connection)
+        .options(selectinload(Connection.telegram_connection), selectinload(Connection.max_channel))
+        .where(Connection.id == connection_id, Connection.user_id == current_user.id)
     )
     connection = result.scalar_one_or_none()
 
     if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Connection not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
 
-    # Send test message
-    max_token = decrypt_token(current_user_obj.max_token)
+    max_channel = connection.max_channel
+    max_token = decrypt_token(max_channel.bot_token)
 
     try:
-        await send_test_message(max_token, connection.max_chat_id, test_message)
+        await send_test_message(max_token, max_channel.chat_id, test_message)
         success = True
         message = "Test message sent successfully"
     except Exception as e:
@@ -507,20 +603,13 @@ async def test_connection(
         message = f"Failed to send test message: {str(e)}"
 
     # Get webhook info
-    tg_result = await session.execute(
-        select(TelegramConnection).where(
-            TelegramConnection.id == connection.telegram_connection_id
-        )
-    )
-    tg_connection = tg_result.scalar_one_or_none()
+    tg_connection = connection.telegram_connection
     webhook_info = None
-
-    if tg_connection:
-        bot_token = decrypt_token(tg_connection.bot_token)
-        try:
-            webhook_info = await get_webhook_info(bot_token)
-        except Exception:
-            pass
+    bot_token = decrypt_token(tg_connection.bot_token)
+    try:
+        webhook_info = await get_webhook_info(bot_token)
+    except Exception:
+        pass
 
     return TestConnectionResponse(
         success=success,
@@ -529,21 +618,17 @@ async def test_connection(
     )
 
 
-# Cleanup endpoint (cron job usage)
+# ── Cleanup ────────────────────────────────────────────────────────
+
+
 @router.post("/cleanup", response_model=dict[str, int])
 async def cleanup_old_data(
     session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentUser,
-    # Only allow admin users - simplified for now
 ) -> dict[str, int]:
     """Clean up old post history and counters."""
-
     posts_deleted = await cleanup_old_posts(session)
     counters_deleted = await cleanup_old_post_counts(session)
-
     await session.commit()
 
-    return {
-        "posts_deleted": posts_deleted,
-        "counters_deleted": counters_deleted,
-    }
+    return {"posts_deleted": posts_deleted, "counters_deleted": counters_deleted}

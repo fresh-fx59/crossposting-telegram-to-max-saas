@@ -75,7 +75,7 @@ async def telegram_webhook(
     # Find all active connections for this Telegram connection
     result = await session.execute(
         select(Connection)
-        .options(selectinload(Connection.user))
+        .options(selectinload(Connection.max_channel))
         .where(
             Connection.telegram_connection_id == tg_connection.id,
             Connection.is_active.is_(True),

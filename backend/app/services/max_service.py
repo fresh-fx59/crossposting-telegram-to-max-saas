@@ -139,15 +139,14 @@ async def forward_channel_post_to_max(
     """
     from ..services.crypto import decrypt_token
 
-    user = connection.user
-    max_token = decrypt_token(user.max_token or "")
-    max_chat_id = connection.max_chat_id
-
-    if not max_token or not max_chat_id:
-        error = "Max credentials not configured"
+    max_channel = connection.max_channel
+    if not max_channel or not max_channel.bot_token:
+        error = "Max channel not configured"
         logger.error(error)
         return None, error
 
+    max_token = decrypt_token(max_channel.bot_token)
+    max_chat_id = max_channel.chat_id
     max_client = MaxClient(max_token)
     max_message_id = None
     error_message = None

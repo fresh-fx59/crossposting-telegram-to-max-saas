@@ -39,18 +39,51 @@ class TelegramConnectionResponse(BaseModel):
         from_attributes = True
 
 
+class MaxChannelCreate(BaseModel):
+    """Schema for creating a Max channel."""
+
+    bot_token: str = Field(..., min_length=1)
+    chat_id: int = Field(..., gt=0)
+    name: str | None = Field(None, min_length=1, max_length=255)
+
+
+class MaxChannelUpdate(BaseModel):
+    """Schema for updating a Max channel."""
+
+    bot_token: str | None = Field(None, min_length=1)
+    chat_id: int | None = Field(None, gt=0)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    is_active: bool | None = None
+
+
+class MaxChannelResponse(BaseModel):
+    """Schema for Max channel response."""
+
+    id: int
+    chat_id: int
+    name: str | None
+    bot_token_set: bool = Field(default=False, description="Whether bot token is configured")
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        """Pydantic config."""
+
+        from_attributes = True
+
+
 class ConnectionCreate(BaseModel):
     """Schema for creating a connection."""
 
     telegram_connection_id: int = Field(..., gt=0)
-    max_chat_id: int = Field(..., gt=0)
+    max_channel_id: int = Field(..., gt=0)
     name: str | None = Field(None, min_length=1, max_length=255)
 
 
 class ConnectionUpdate(BaseModel):
     """Schema for updating a connection."""
 
-    max_chat_id: int | None = Field(None, gt=0)
+    max_channel_id: int | None = Field(None, gt=0)
     name: str | None = Field(None, min_length=1, max_length=255)
     is_active: bool | None = None
 
@@ -62,7 +95,9 @@ class ConnectionResponse(BaseModel):
     telegram_connection_id: int
     telegram_channel_id: int
     telegram_channel_username: str | None
+    max_channel_id: int
     max_chat_id: int
+    max_channel_name: str | None
     name: str | None
     is_active: bool
     created_at: datetime
