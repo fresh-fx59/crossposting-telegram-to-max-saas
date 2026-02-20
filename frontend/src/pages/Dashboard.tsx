@@ -41,6 +41,7 @@ import {
   type MaxChannel,
   type User,
 } from '../services/api';
+import maxLogo from '../assets/max-logo.png';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -327,11 +328,7 @@ export default function Dashboard() {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{
-                      width: 24, height: 24, borderRadius: '50%', bgcolor: '#7c4dff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'white', fontSize: '0.7rem', fontWeight: 'bold',
-                    }}>M</Box>
+                    <img src={maxLogo} alt="Max" width={24} height={24} style={{ borderRadius: 4 }} />
                     Max Channels
                   </Typography>
                   <Button size="small" startIcon={<AddIcon />} onClick={() => setMaxDialogOpen(true)}>Add</Button>
@@ -434,11 +431,7 @@ export default function Dashboard() {
                             <ArrowForwardIcon sx={{ color: 'text.disabled', flexShrink: 0 }} />
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                              <Box sx={{
-                                width: 20, height: 20, borderRadius: '50%', bgcolor: '#7c4dff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0, color: 'white', fontSize: '0.6rem', fontWeight: 'bold',
-                              }}>M</Box>
+                              <img src={maxLogo} alt="Max" width={20} height={20} style={{ borderRadius: 3, flexShrink: 0 }} />
                               <Typography variant="body2" noWrap>
                                 {conn.max_channel_name || `Chat ${conn.max_chat_id}`}
                               </Typography>
