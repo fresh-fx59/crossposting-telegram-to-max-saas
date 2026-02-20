@@ -9,6 +9,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import ConnectionDetail from './pages/ConnectionDetail';
 import Settings from './pages/Settings';
+import Docs from './pages/Docs';
 
 const theme = createTheme({
   palette: {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/docs" element={<Docs />} />
           <Route
             path="/dashboard"
             element={

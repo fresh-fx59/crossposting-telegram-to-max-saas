@@ -69,6 +69,7 @@ Users can have multiple Telegram channels and multiple Max channels. Connections
 ## Frontend Pages
 
 - `/` — Landing page
+- `/docs` — Setup guide (public, no auth required)
 - `/login`, `/register`, `/verify-email` — Auth pages
 - `/dashboard` — Main page with 3 sections: Telegram Channels, Max Channels, Links
 - `/connections/:id` — Connection detail with post history

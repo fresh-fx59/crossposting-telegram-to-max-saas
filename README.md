@@ -6,6 +6,7 @@ Live: https://crossposter.aiengineerhelper.com/
 
 ## Features
 
+- Built-in setup guide (`/docs`) with step-by-step instructions
 - User registration with email verification (Cloudflare Turnstile captcha)
 - Multiple Telegram channel connections per user
 - Configurable Max bot credentials per user

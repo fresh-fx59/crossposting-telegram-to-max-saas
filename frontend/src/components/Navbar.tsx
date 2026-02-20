@@ -34,6 +34,9 @@ export default function Navbar() {
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button color="inherit" component={RouterLink} to="/docs">
+              Docs
+            </Button>
             {token ? (
               <>
                 <Button color="inherit" component={RouterLink} to="/dashboard">
