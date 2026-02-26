@@ -12,12 +12,14 @@ import {
 } from '@mui/material';
 import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
@@ -36,7 +38,7 @@ export default function Login() {
       const res = await authApi.resendVerification();
       setResendSuccess(res.message);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to resend verification email');
+      setError(err.response?.data?.detail || t.login.errors.resendFailed);
     } finally {
       setResendingEmail(false);
     }
@@ -47,7 +49,7 @@ export default function Login() {
     setError('');
 
     if (TURNSTILE_SITE_KEY && !captchaToken) {
-      setError('Please complete the captcha');
+      setError(t.login.errors.captchaRequired);
       return;
     }
 
@@ -58,7 +60,7 @@ export default function Login() {
       localStorage.setItem('access_token', result.access_token);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed');
+      setError(err.response?.data?.detail || t.login.errors.loginFailed);
       setCaptchaToken('');
       setCaptchaKey((k) => k + 1);
     } finally {
@@ -70,7 +72,7 @@ export default function Login() {
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom textAlign="center">
-          Login
+          {t.login.title}
         </Typography>
 
         {needVerification && (
@@ -82,11 +84,11 @@ export default function Login() {
                 disabled={resendingEmail}
                 onClick={handleResendVerification}
               >
-                {resendingEmail ? 'Sending...' : 'Resend'}
+                {resendingEmail ? t.login.sending : t.login.resend}
               </Button>
             }
           >
-            Your email address needs to be verified. Please check your inbox for the verification link.
+            {t.login.verificationNeeded}
           </Alert>
         )}
 
@@ -104,7 +106,7 @@ export default function Login() {
 
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
-            label="Email"
+            label={t.login.email}
             type="email"
             fullWidth
             value={email}
@@ -114,7 +116,7 @@ export default function Login() {
             autoComplete="email"
           />
           <TextField
-            label="Password"
+            label={t.login.password}
             type="password"
             fullWidth
             value={password}
@@ -143,16 +145,16 @@ export default function Login() {
             disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
             sx={{ mt: 2 }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Login'}
+            {loading ? <CircularProgress size={24} /> : t.login.submit}
           </Button>
 
           <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-            Don't have an account?{' '}
-            <RouterLink to="/register">Register</RouterLink>
+            {t.login.noAccount}{' '}
+            <RouterLink to="/register">{t.login.registerLink}</RouterLink>
           </Typography>
 
           <Typography variant="body2" align="center" sx={{ mt: 1 }}>
-            <RouterLink to="/forgot-password">Forgot password?</RouterLink>
+            <RouterLink to="/forgot-password">{t.login.forgotPassword}</RouterLink>
           </Typography>
         </Box>
       </Paper>

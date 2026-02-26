@@ -34,10 +34,12 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { connectionsApi, type ConnectionDetail } from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function ConnectionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [connection, setConnection] = useState<ConnectionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,7 +55,7 @@ export default function ConnectionDetailPage() {
       const conn = await connectionsApi.getConnection(Number(id), page);
       setConnection(conn);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load connection');
+      setError(err.response?.data?.detail || t.connectionDetail.failedToLoad);
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,7 @@ export default function ConnectionDetailPage() {
       setEditDialogOpen(false);
       await loadConnection();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update connection');
+      setError(err.response?.data?.detail || t.connectionDetail.editDialog.failedToUpdate);
     } finally {
       setEditSaving(false);
     }
@@ -94,10 +96,10 @@ export default function ConnectionDetailPage() {
     if (!connection) return;
     try {
       await connectionsApi.testConnection(connection.id);
-      alert('Test message sent!');
+      alert(t.connectionDetail.testSent);
       loadConnection();
     } catch (err: any) {
-      alert('Failed: ' + (err.response?.data?.detail || err.message));
+      alert(t.connectionDetail.testFailed.replace('{error}', err.response?.data?.detail || err.message));
     }
   };
 
@@ -108,10 +110,10 @@ export default function ConnectionDetailPage() {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h4" component="h1" flexGrow={1}>
-          Connection Details
+          {t.connectionDetail.title}
         </Typography>
         <Button startIcon={<RefreshIcon />} onClick={loadConnection}>
-          Refresh
+          {t.connectionDetail.refresh}
         </Button>
       </Box>
 
@@ -128,34 +130,34 @@ export default function ConnectionDetailPage() {
           <Card sx={{ mb: 3 }}>
             <Box sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                {connection.name || `Connection ${connection.id}`}
+                {connection.name || t.connectionDetail.connectionName.replace('{id}', String(connection.id))}
               </Typography>
               <Typography color="text.secondary" gutterBottom>
-                Telegram: @{connection.telegram_channel_username || connection.telegram_channel_id}
+                {t.connectionDetail.telegram}: @{connection.telegram_channel_username || connection.telegram_channel_id}
               </Typography>
               <Typography color="text.secondary" gutterBottom>
-                Max: {connection.max_channel_name || `Chat ${connection.max_chat_id}`}
+                {t.connectionDetail.max}: {connection.max_channel_name || `${t.common.chat} ${connection.max_chat_id}`}
               </Typography>
               <Chip
                 icon={connection.is_active ? <CheckCircleIcon /> : <ErrorIcon />}
-                label={connection.is_active ? 'Active' : 'Inactive'}
+                label={connection.is_active ? t.connectionDetail.active : t.connectionDetail.inactive}
                 color={connection.is_active ? 'success' : 'error'}
                 size="small"
               />
               <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
                 <Button variant="contained" onClick={handleTest}>
-                  Test Connection
+                  {t.connectionDetail.testConnection}
                 </Button>
                 <Button variant="outlined" startIcon={<EditIcon />} onClick={openEditDialog}>
-                  Edit
+                  {t.connectionDetail.edit}
                 </Button>
                 <Button color="error" onClick={async () => {
-                  if (confirm('Delete this connection?')) {
+                  if (confirm(t.connectionDetail.confirmDelete)) {
                     await connectionsApi.deleteConnection(connection.id);
                     navigate('/dashboard');
                   }
                 }}>
-                  Delete
+                  {t.connectionDetail.delete}
                 </Button>
               </Box>
             </Box>
@@ -163,18 +165,18 @@ export default function ConnectionDetailPage() {
 
           <Card>
             <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6">Post History</Typography>
+              <Typography variant="h6">{t.connectionDetail.postHistory.title}</Typography>
             </Box>
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Telegram ID</TableCell>
-                    <TableCell>Max ID</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Error</TableCell>
-                    <TableCell>Time</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.telegramId}</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.maxId}</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.type}</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.status}</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.error}</TableCell>
+                    <TableCell>{t.connectionDetail.postHistory.time}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -182,7 +184,7 @@ export default function ConnectionDetailPage() {
                     <TableRow>
                       <TableCell colSpan={6} align="center">
                         <Typography color="text.secondary" sx={{ py: 4 }}>
-                          No posts yet
+                          {t.connectionDetail.postHistory.empty}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -219,36 +221,36 @@ export default function ConnectionDetailPage() {
           </Card>
         </>
       ) : (
-        <Alert severity="info">Connection not found</Alert>
+        <Alert severity="info">{t.connectionDetail.connectionNotFound}</Alert>
       )}
 
       {/* Edit Connection Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Connection</DialogTitle>
+        <DialogTitle>{t.connectionDetail.editDialog.title}</DialogTitle>
         <DialogContent>
           <TextField
-            label="Link Name"
+            label={t.connectionDetail.editDialog.linkName}
             fullWidth
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             sx={{ mt: 1, mb: 2 }}
           />
           <FormControl fullWidth>
-            <InputLabel>Status</InputLabel>
+            <InputLabel>{t.connectionDetail.editDialog.status}</InputLabel>
             <Select
               value={editActive ? 'active' : 'inactive'}
-              label="Status"
+              label={t.connectionDetail.editDialog.status}
               onChange={(e) => setEditActive(e.target.value === 'active')}
             >
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="active">{t.connectionDetail.editDialog.active}</MenuItem>
+              <MenuItem value="inactive">{t.connectionDetail.editDialog.inactive}</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setEditDialogOpen(false)}>{t.connectionDetail.editDialog.cancel}</Button>
           <Button variant="contained" onClick={handleUpdateConnection} disabled={editSaving}>
-            {editSaving ? 'Saving...' : 'Save'}
+            {editSaving ? t.connectionDetail.editDialog.saving : t.connectionDetail.editDialog.save}
           </Button>
         </DialogActions>
       </Dialog>

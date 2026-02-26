@@ -42,9 +42,11 @@ import {
   type User,
 } from '../services/api';
 import maxLogo from '../assets/max-logo.png';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [telegramConnections, setTelegramConnections] = useState<TelegramConnection[]>([]);
   const [maxChannels, setMaxChannels] = useState<MaxChannel[]>([]);
@@ -107,7 +109,7 @@ export default function Dashboard() {
       setTelegramConnections(tgConns);
       setMaxChannels(maxChs);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load data');
+      setError(err.response?.data?.detail || t.dashboard.failedToLoad);
     } finally {
       setLoading(false);
     }
@@ -122,17 +124,17 @@ export default function Dashboard() {
       setTgUsername(''); setTgBotToken('');
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create Telegram channel');
+      setError(err.response?.data?.detail || t.dashboard.telegram.errors.createFailed);
     } finally { setTgCreating(false); }
   };
 
   const handleDeleteTelegram = async (id: number) => {
-    if (!confirm('Delete this Telegram channel? All linked connections will be removed.')) return;
+    if (!confirm(t.dashboard.telegram.confirmDelete)) return;
     try {
       await connectionsApi.deleteTelegramConnection(id);
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete');
+      setError(err.response?.data?.detail || t.dashboard.telegram.errors.deleteFailed);
     }
   };
 
@@ -155,7 +157,7 @@ export default function Dashboard() {
       setEditTgDialogOpen(false);
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update');
+      setError(err.response?.data?.detail || t.dashboard.telegram.errors.updateFailed);
     } finally { setEditTgSaving(false); }
   };
 
@@ -168,17 +170,17 @@ export default function Dashboard() {
       setMaxBotToken(''); setMaxChatId(''); setMaxName('');
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create Max channel');
+      setError(err.response?.data?.detail || t.dashboard.max.errors.createFailed);
     } finally { setMaxCreating(false); }
   };
 
   const handleDeleteMaxChannel = async (id: number) => {
-    if (!confirm('Delete this Max channel? All linked connections will be removed.')) return;
+    if (!confirm(t.dashboard.max.confirmDelete)) return;
     try {
       await connectionsApi.deleteMaxChannel(id);
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete');
+      setError(err.response?.data?.detail || t.dashboard.max.errors.deleteFailed);
     }
   };
 
@@ -212,7 +214,7 @@ export default function Dashboard() {
       setEditMaxDialogOpen(false);
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update');
+      setError(err.response?.data?.detail || t.dashboard.max.errors.updateFailed);
     } finally { setEditMaxSaving(false); }
   };
 
@@ -225,17 +227,17 @@ export default function Dashboard() {
       setLinkTgId(''); setLinkMaxId(''); setLinkName('');
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create link');
+      setError(err.response?.data?.detail || t.dashboard.links.errors.createFailed);
     } finally { setLinkCreating(false); }
   };
 
   const handleDeleteLink = async (id: number) => {
-    if (!confirm('Delete this link?')) return;
+    if (!confirm(t.dashboard.links.confirmDelete)) return;
     try {
       await connectionsApi.deleteConnection(id);
       await loadAll();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete');
+      setError(err.response?.data?.detail || t.dashboard.links.errors.deleteFailed);
     }
   };
 
@@ -243,7 +245,7 @@ export default function Dashboard() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>Dashboard</Typography>
+      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>{t.dashboard.title}</Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>
@@ -257,13 +259,13 @@ export default function Dashboard() {
               const res = await authApi.resendVerification();
               setResendSuccess(res.message);
             } catch (err: any) {
-              setError(err.response?.data?.detail || 'Failed to resend');
+              setError(err.response?.data?.detail || t.dashboard.failedToResend);
             } finally { setResendingEmail(false); }
           }}>
-            {resendingEmail ? 'Sending...' : 'Resend'}
+            {resendingEmail ? t.dashboard.sending : t.dashboard.resend}
           </Button>
         }>
-          Please verify your email to create links.
+          {t.dashboard.verifyEmailWarning}
         </Alert>
       )}
 
@@ -279,13 +281,13 @@ export default function Dashboard() {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TelegramIcon sx={{ color: '#0088cc' }} /> Telegram Channels
+                    <TelegramIcon sx={{ color: '#0088cc' }} /> {t.dashboard.telegram.title}
                   </Typography>
-                  <Button size="small" startIcon={<AddIcon />} onClick={() => setTgDialogOpen(true)}>Add</Button>
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => setTgDialogOpen(true)}>{t.dashboard.telegram.add}</Button>
                 </Box>
                 {telegramConnections.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                    No Telegram channels yet
+                    {t.dashboard.telegram.empty}
                   </Typography>
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -298,7 +300,7 @@ export default function Dashboard() {
                                 @{tg.telegram_channel_username || tg.telegram_channel_id}
                               </Typography>
                               <Chip
-                                label={tg.is_active ? 'Active' : 'Inactive'}
+                                label={tg.is_active ? t.dashboard.telegram.active : t.dashboard.telegram.inactive}
                                 size="small"
                                 color={tg.is_active ? 'success' : 'default'}
                                 sx={{ height: 18, fontSize: '0.65rem', mt: 0.5 }}
@@ -329,13 +331,13 @@ export default function Dashboard() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <img src={maxLogo} alt="Max" width={24} height={24} style={{ borderRadius: 4 }} />
-                    Max Channels
+                    {t.dashboard.max.title}
                   </Typography>
-                  <Button size="small" startIcon={<AddIcon />} onClick={() => setMaxDialogOpen(true)}>Add</Button>
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => setMaxDialogOpen(true)}>{t.dashboard.max.add}</Button>
                 </Box>
                 {maxChannels.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                    No Max channels yet
+                    {t.dashboard.max.empty}
                   </Typography>
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -345,14 +347,14 @@ export default function Dashboard() {
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Box>
                               <Typography variant="body2" fontWeight={600}>
-                                {ch.name || `Chat ${ch.chat_id}`}
+                                {ch.name || `${t.common.chat} ${ch.chat_id}`}
                               </Typography>
                               <Typography variant="caption" color="text.secondary">
                                 ID: {ch.chat_id}
                               </Typography>
                               <Box sx={{ mt: 0.5 }}>
                                 <Chip
-                                  label={ch.is_active ? 'Active' : 'Inactive'}
+                                  label={ch.is_active ? t.dashboard.max.active : t.dashboard.max.inactive}
                                   size="small"
                                   color={ch.is_active ? 'success' : 'default'}
                                   sx={{ height: 18, fontSize: '0.65rem' }}
@@ -386,7 +388,7 @@ export default function Dashboard() {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LinkIcon /> Links
+                    <LinkIcon /> {t.dashboard.links.title}
                   </Typography>
                   <Button
                     size="small"
@@ -399,19 +401,19 @@ export default function Dashboard() {
                     }}
                     disabled={!canCreateLink}
                   >
-                    Add Link
+                    {t.dashboard.links.addLink}
                   </Button>
                 </Box>
 
                 {!canCreateLink && connections.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                     {!user?.is_email_verified
-                      ? 'Verify your email first'
+                      ? t.dashboard.links.verifyFirst
                       : telegramConnections.length === 0 && maxChannels.length === 0
-                      ? 'Add a Telegram channel and a Max channel first'
+                      ? t.dashboard.links.addBoth
                       : telegramConnections.length === 0
-                      ? 'Add a Telegram channel first'
-                      : 'Add a Max channel first'}
+                      ? t.dashboard.links.addTelegram
+                      : t.dashboard.links.addMax}
                   </Typography>
                 )}
 
@@ -433,19 +435,19 @@ export default function Dashboard() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
                               <img src={maxLogo} alt="Max" width={20} height={20} style={{ borderRadius: 3, flexShrink: 0 }} />
                               <Typography variant="body2" noWrap>
-                                {conn.max_channel_name || `Chat ${conn.max_chat_id}`}
+                                {conn.max_channel_name || `${t.common.chat} ${conn.max_chat_id}`}
                               </Typography>
                             </Box>
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
                               <Chip
                                 icon={conn.is_active ? <CheckCircleIcon /> : <ErrorIcon />}
-                                label={conn.is_active ? 'Active' : 'Off'}
+                                label={conn.is_active ? t.dashboard.links.active : t.dashboard.links.off}
                                 color={conn.is_active ? 'success' : 'error'}
                                 size="small"
                               />
                               <Button size="small" onClick={() => navigate(`/connections/${conn.id}`)}>
-                                Details
+                                {t.dashboard.links.details}
                               </Button>
                               <IconButton size="small" color="error" onClick={() => handleDeleteLink(conn.id)}>
                                 <DeleteIcon fontSize="small" />
@@ -470,49 +472,49 @@ export default function Dashboard() {
 
       {/* Add Telegram Channel Dialog */}
       <Dialog open={tgDialogOpen} onClose={() => setTgDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Telegram Channel</DialogTitle>
+        <DialogTitle>{t.dashboard.telegram.addDialog.title}</DialogTitle>
         <DialogContent>
-          <TextField label="Channel Username" placeholder="@yourchannel" fullWidth
+          <TextField label={t.dashboard.telegram.addDialog.username} placeholder={t.dashboard.telegram.addDialog.usernamePlaceholder} fullWidth
             value={tgUsername} onChange={(e) => setTgUsername(e.target.value)} sx={{ mt: 1, mb: 2 }} />
-          <TextField label="Bot Token" placeholder="From @BotFather" fullWidth
+          <TextField label={t.dashboard.telegram.addDialog.botToken} placeholder={t.dashboard.telegram.addDialog.botTokenPlaceholder} fullWidth
             value={tgBotToken} onChange={(e) => setTgBotToken(e.target.value)} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTgDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setTgDialogOpen(false)}>{t.dashboard.telegram.addDialog.cancel}</Button>
           <Button variant="contained" onClick={handleCreateTelegram}
             disabled={tgCreating || !tgUsername.trim() || !tgBotToken.trim()}>
-            {tgCreating ? 'Creating...' : 'Add'}
+            {tgCreating ? t.dashboard.telegram.addDialog.creating : t.dashboard.telegram.addDialog.add}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Max Channel Dialog */}
       <Dialog open={maxDialogOpen} onClose={() => setMaxDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Max Channel</DialogTitle>
+        <DialogTitle>{t.dashboard.max.addDialog.title}</DialogTitle>
         <DialogContent>
-          <TextField label="Bot Token" placeholder="Max bot token" fullWidth
+          <TextField label={t.dashboard.max.addDialog.botToken} placeholder={t.dashboard.max.addDialog.botTokenPlaceholder} fullWidth
             value={maxBotToken} onChange={(e) => setMaxBotToken(e.target.value)} sx={{ mt: 1, mb: 2 }} />
-          <TextField label="Chat ID" placeholder="Max chat/channel ID" fullWidth type="number"
+          <TextField label={t.dashboard.max.addDialog.chatId} placeholder={t.dashboard.max.addDialog.chatIdPlaceholder} fullWidth type="number"
             value={maxChatId} onChange={(e) => setMaxChatId(e.target.value)} sx={{ mb: 2 }} />
-          <TextField label="Name (optional)" placeholder="e.g. My Max Channel" fullWidth
+          <TextField label={t.dashboard.max.addDialog.name} placeholder={t.dashboard.max.addDialog.namePlaceholder} fullWidth
             value={maxName} onChange={(e) => setMaxName(e.target.value)} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setMaxDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setMaxDialogOpen(false)}>{t.dashboard.max.addDialog.cancel}</Button>
           <Button variant="contained" onClick={handleCreateMaxChannel}
             disabled={maxCreating || !maxBotToken.trim() || !maxChatId.trim()}>
-            {maxCreating ? 'Creating...' : 'Add'}
+            {maxCreating ? t.dashboard.max.addDialog.creating : t.dashboard.max.addDialog.add}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Link Dialog */}
       <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Link</DialogTitle>
+        <DialogTitle>{t.dashboard.links.addDialog.title}</DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 1, mb: 2 }}>
-            <InputLabel>Telegram Channel</InputLabel>
-            <Select value={linkTgId} label="Telegram Channel"
+            <InputLabel>{t.dashboard.links.addDialog.telegramChannel}</InputLabel>
+            <Select value={linkTgId} label={t.dashboard.links.addDialog.telegramChannel}
               onChange={(e) => setLinkTgId(e.target.value as number)}>
               {telegramConnections.map((tg) => (
                 <MenuItem key={tg.id} value={tg.id}>
@@ -522,76 +524,76 @@ export default function Dashboard() {
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Max Channel</InputLabel>
-            <Select value={linkMaxId} label="Max Channel"
+            <InputLabel>{t.dashboard.links.addDialog.maxChannel}</InputLabel>
+            <Select value={linkMaxId} label={t.dashboard.links.addDialog.maxChannel}
               onChange={(e) => setLinkMaxId(e.target.value as number)}>
               {maxChannels.map((ch) => (
                 <MenuItem key={ch.id} value={ch.id}>
-                  {ch.name || `Chat ${ch.chat_id}`} (ID: {ch.chat_id})
+                  {ch.name || `${t.common.chat} ${ch.chat_id}`} (ID: {ch.chat_id})
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
-          <TextField label="Link Name (optional)" fullWidth
+          <TextField label={t.dashboard.links.addDialog.linkName} fullWidth
             value={linkName} onChange={(e) => setLinkName(e.target.value)} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setLinkDialogOpen(false)}>{t.dashboard.links.addDialog.cancel}</Button>
           <Button variant="contained" onClick={handleCreateLink}
             disabled={linkCreating || !linkTgId || !linkMaxId}>
-            {linkCreating ? 'Creating...' : 'Create Link'}
+            {linkCreating ? t.dashboard.links.addDialog.creating : t.dashboard.links.addDialog.create}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Telegram Channel Dialog */}
       <Dialog open={editTgDialogOpen} onClose={() => setEditTgDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Telegram Channel</DialogTitle>
+        <DialogTitle>{t.dashboard.telegram.editDialog.title}</DialogTitle>
         <DialogContent>
-          <TextField label="Channel Username" fullWidth value={editTgUsername}
+          <TextField label={t.dashboard.telegram.editDialog.username} fullWidth value={editTgUsername}
             onChange={(e) => setEditTgUsername(e.target.value)} sx={{ mt: 1, mb: 2 }} />
-          <TextField label="Bot Token (leave empty to keep)" fullWidth value={editTgBotToken}
+          <TextField label={t.dashboard.telegram.editDialog.botToken} fullWidth value={editTgBotToken}
             onChange={(e) => setEditTgBotToken(e.target.value)} sx={{ mb: 2 }} />
           <FormControl fullWidth>
-            <InputLabel>Status</InputLabel>
-            <Select value={editTgActive ? 'active' : 'inactive'} label="Status"
+            <InputLabel>{t.dashboard.telegram.editDialog.status}</InputLabel>
+            <Select value={editTgActive ? 'active' : 'inactive'} label={t.dashboard.telegram.editDialog.status}
               onChange={(e) => setEditTgActive(e.target.value === 'active')}>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="active">{t.dashboard.telegram.editDialog.active}</MenuItem>
+              <MenuItem value="inactive">{t.dashboard.telegram.editDialog.inactive}</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditTgDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setEditTgDialogOpen(false)}>{t.dashboard.telegram.editDialog.cancel}</Button>
           <Button variant="contained" onClick={handleUpdateTelegram} disabled={editTgSaving}>
-            {editTgSaving ? 'Saving...' : 'Save'}
+            {editTgSaving ? t.dashboard.telegram.editDialog.saving : t.dashboard.telegram.editDialog.save}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Max Channel Dialog */}
       <Dialog open={editMaxDialogOpen} onClose={() => setEditMaxDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Max Channel</DialogTitle>
+        <DialogTitle>{t.dashboard.max.editDialog.title}</DialogTitle>
         <DialogContent>
-          <TextField label="Bot Token (leave empty to keep)" fullWidth value={editMaxBotToken}
+          <TextField label={t.dashboard.max.editDialog.botToken} fullWidth value={editMaxBotToken}
             onChange={(e) => setEditMaxBotToken(e.target.value)} sx={{ mt: 1, mb: 2 }} />
-          <TextField label="Chat ID" fullWidth type="number" value={editMaxChatId}
+          <TextField label={t.dashboard.max.editDialog.chatId} fullWidth type="number" value={editMaxChatId}
             onChange={(e) => setEditMaxChatId(e.target.value)} sx={{ mb: 2 }} />
-          <TextField label="Name" fullWidth value={editMaxName}
+          <TextField label={t.dashboard.max.editDialog.name} fullWidth value={editMaxName}
             onChange={(e) => setEditMaxName(e.target.value)} sx={{ mb: 2 }} />
           <FormControl fullWidth>
-            <InputLabel>Status</InputLabel>
-            <Select value={editMaxActive ? 'active' : 'inactive'} label="Status"
+            <InputLabel>{t.dashboard.max.editDialog.status}</InputLabel>
+            <Select value={editMaxActive ? 'active' : 'inactive'} label={t.dashboard.max.editDialog.status}
               onChange={(e) => setEditMaxActive(e.target.value === 'active')}>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="active">{t.dashboard.max.editDialog.active}</MenuItem>
+              <MenuItem value="inactive">{t.dashboard.max.editDialog.inactive}</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditMaxDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setEditMaxDialogOpen(false)}>{t.dashboard.max.editDialog.cancel}</Button>
           <Button variant="contained" onClick={handleUpdateMaxChannel} disabled={editMaxSaving}>
-            {editMaxSaving ? 'Saving...' : 'Save'}
+            {editMaxSaving ? t.dashboard.max.editDialog.saving : t.dashboard.max.editDialog.save}
           </Button>
         </DialogActions>
       </Dialog>

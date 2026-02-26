@@ -12,11 +12,13 @@ import {
 } from '@mui/material';
 import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export default function Register() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,17 +33,17 @@ export default function Register() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.register.errors.passwordsMismatch);
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t.register.errors.passwordTooShort);
       return;
     }
 
     if (TURNSTILE_SITE_KEY && !captchaToken) {
-      setError('Please complete the captcha');
+      setError(t.register.errors.captchaRequired);
       return;
     }
 
@@ -53,7 +55,7 @@ export default function Register() {
       setSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      setError(err.response?.data?.detail || t.register.errors.registrationFailed);
       setCaptchaToken('');
       setCaptchaKey((k) => k + 1);
     } finally {
@@ -66,9 +68,9 @@ export default function Register() {
       <Container maxWidth="sm" sx={{ mt: 8 }}>
         <Paper sx={{ p: 4 }}>
           <Alert severity="success" sx={{ mb: 2 }}>
-            Registration successful! Verification email sent to {email}.
+            {t.register.successMessage.replace('{email}', email)}
           </Alert>
-          <Typography>Redirecting to dashboard...</Typography>
+          <Typography>{t.register.redirecting}</Typography>
         </Paper>
       </Container>
     );
@@ -78,7 +80,7 @@ export default function Register() {
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom textAlign="center">
-          Create Account
+          {t.register.title}
         </Typography>
 
         {error && (
@@ -89,7 +91,7 @@ export default function Register() {
 
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
-            label="Email"
+            label={t.register.email}
             type="email"
             fullWidth
             value={email}
@@ -99,7 +101,7 @@ export default function Register() {
             autoComplete="email"
           />
           <TextField
-            label="Password"
+            label={t.register.password}
             type="password"
             fullWidth
             value={password}
@@ -107,10 +109,10 @@ export default function Register() {
             margin="normal"
             required
             autoComplete="new-password"
-            helperText="Minimum 8 characters"
+            helperText={t.register.passwordHelper}
           />
           <TextField
-            label="Confirm Password"
+            label={t.register.confirmPassword}
             type="password"
             fullWidth
             value={confirmPassword}
@@ -139,12 +141,12 @@ export default function Register() {
             disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
             sx={{ mt: 2 }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Register'}
+            {loading ? <CircularProgress size={24} /> : t.register.submit}
           </Button>
 
           <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-            Already have an account?{' '}
-            <RouterLink to="/login">Login</RouterLink>
+            {t.register.hasAccount}{' '}
+            <RouterLink to="/login">{t.register.loginLink}</RouterLink>
           </Typography>
         </Box>
       </Paper>

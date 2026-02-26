@@ -6,6 +6,7 @@ Live: https://crossposter.aiengineerhelper.com/
 
 ## Features
 
+- **Bilingual interface** (Russian / English) with auto-detection and manual switcher
 - Built-in setup guide (`/docs`) with step-by-step instructions
 - User registration with email verification (Cloudflare Turnstile captcha)
 - Multiple Telegram channel connections per user
@@ -14,6 +15,10 @@ Live: https://crossposter.aiengineerhelper.com/
 - Daily post limits per connection
 - Post history with success/failure tracking
 - Encrypted token storage
+
+## Contact
+
+Telegram: [@alex_444](https://t.me/alex_444)
 
 ## Tech Stack
 
@@ -211,6 +216,7 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 ├── frontend/
 │   ├── src/
 │   │   ├── components/  # React components
+│   │   ├── i18n/        # Internationalization (RU/EN translations)
 │   │   ├── pages/       # Route pages
 │   │   └── services/    # API client (axios)
 │   ├── Dockerfile       # Multi-stage build with VITE_API_URL
