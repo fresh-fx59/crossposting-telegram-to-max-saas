@@ -142,6 +142,27 @@ Required GitHub secrets (only 3):
 
 The workflow does **not** touch `.env`, certs, or Traefik — those are managed manually on the server.
 
+### Frontend Mirror Deploy (Monitoring Server)
+
+Frontend static files are also auto-deployed to the monitoring server for
+`crossposter.aiengineerhelper.com` via
+`.github/workflows/deploy-frontend-monitoring.yml`.
+
+What this workflow does on each push to `main`:
+
+1. Builds `frontend/` (`npm ci && npm run build`)
+2. Uploads files to monitoring server
+3. Replaces `/var/www/crossposter` contents
+4. Verifies nginx response for host `crossposter.aiengineerhelper.com`
+
+Required secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `MONITORING_SERVER_HOST` | Monitoring server host/IP (e.g. `45.151.30.146`) |
+| `MONITORING_SERVER_USER` | SSH username on monitoring server (e.g. `user1`) |
+| `MONITORING_SERVER_SSH_KEY` | Private SSH key with sudo access for `/var/www/crossposter` |
+
 ### DNS / Cloudflare Setup
 
 - Add A record: `crossposter` -> your server IP (Proxied)
