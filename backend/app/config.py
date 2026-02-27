@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Telegram Crossposter SaaS"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "1.0.1"
     ENV: Literal["development", "production", "test"] = "development"
 
     # Database
