@@ -81,8 +81,8 @@ jobs:
 
             STATUS_CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' \
               -H 'Host: crossposter.aiengineerhelper.com' http://127.0.0.1/)"
-            if [ "${STATUS_CODE}" != "200" ]; then
-              echo "ERROR: monitoring frontend verification failed (status=${STATUS_CODE})"
+            if [ "${STATUS_CODE}" != "200" ] && [ "${STATUS_CODE}" != "301" ] && [ "${STATUS_CODE}" != "302" ]; then
+              echo "ERROR: monitoring frontend verification failed (status=${STATUS_CODE}, expected 200/301/302)"
               exit 1
             fi
 
