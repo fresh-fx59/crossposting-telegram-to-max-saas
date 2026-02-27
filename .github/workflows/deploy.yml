@@ -25,7 +25,9 @@ jobs:
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEPLOY_USER@$SERVER_IP << 'ENDSSH'
             cd ~/crossposting-telegram-to-max-saas
             git pull origin main
-            docker compose -f docker-compose.prod.yml up -d --build
+            # Contabo should run backend stack only; frontend is served from monitoring server.
+            docker compose -f docker-compose.prod.yml up -d --build backend postgres max-api-emulator
+            docker rm -f crossposter-frontend >/dev/null 2>&1 || true
           ENDSSH
 
       - name: Health check
