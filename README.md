@@ -26,7 +26,7 @@ Telegram: [@alex_444](https://t.me/alex_444)
 - **Frontend**: React + TypeScript + Material UI (Vite)
 - **Database**: PostgreSQL 17 with async SQLAlchemy
 - **Reverse Proxy**: Traefik v3.3 with file-based routing
-- **TLS**: Self-signed certs behind Cloudflare (Cloudflare handles public TLS)
+- **TLS**: Let's Encrypt certificates terminated on monitoring nginx
 - **Deployment**: Docker Compose
 
 ## Quick Start (Development)
@@ -142,7 +142,7 @@ Required GitHub secrets (only 3):
 
 The workflow does **not** touch `.env`, certs, or Traefik — those are managed manually on the server.
 
-### Frontend Mirror Deploy (Monitoring Server)
+### Frontend Deploy (Monitoring Server)
 
 Frontend static files are also auto-deployed to the monitoring server for
 `crossposter.aiengineerhelper.com` via
@@ -153,7 +153,9 @@ What this workflow does on each push to `main`:
 1. Builds `frontend/` (`npm ci && npm run build`)
 2. Uploads files to monitoring server
 3. Replaces `/var/www/crossposter` contents
-4. Verifies nginx response for host `crossposter.aiengineerhelper.com`
+4. Applies dedicated crossposter nginx config on monitoring server
+5. Ensures Let's Encrypt certificate for `crossposter.aiengineerhelper.com`
+6. Verifies HTTPS response for host `crossposter.aiengineerhelper.com`
 
 Required secrets:
 
@@ -163,10 +165,9 @@ Required secrets:
 | `MONITORING_SERVER_USER` | SSH username on monitoring server (e.g. `user1`) |
 | `MONITORING_SERVER_SSH_KEY` | Private SSH key with sudo access for `/var/www/crossposter` |
 
-### DNS / Cloudflare Setup
+### DNS Setup
 
 - Add A record: `crossposter` -> monitoring server IP (`45.151.30.146`) as DNS-only
-- SSL/TLS mode: **Full** (not Full Strict, since we use self-signed origin certs)
 
 ### Key Files
 

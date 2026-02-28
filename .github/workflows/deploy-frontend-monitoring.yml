@@ -35,7 +35,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: crossposter-frontend-dist
-          path: frontend/dist
+          path: |
+            frontend/dist
+            deploy
 
       - name: Prepare monitoring server
         uses: appleboy/ssh-action@v1.0.3
@@ -48,6 +50,7 @@ jobs:
             set -e
             rm -rf /tmp/crossposter-frontend
             mkdir -p /tmp/crossposter-frontend/dist
+            mkdir -p /tmp/crossposter-frontend/deploy
 
       - name: Copy bundle to monitoring server
         uses: appleboy/scp-action@v0.1.7
@@ -56,6 +59,16 @@ jobs:
           username: ${{ secrets.MONITORING_SERVER_USER }}
           key: ${{ secrets.MONITORING_SERVER_SSH_KEY }}
           source: "frontend/dist/*"
+          target: "/tmp/crossposter-frontend/"
+          overwrite: true
+
+      - name: Copy deployment config to monitoring server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.MONITORING_SERVER_HOST }}
+          username: ${{ secrets.MONITORING_SERVER_USER }}
+          key: ${{ secrets.MONITORING_SERVER_SSH_KEY }}
+          source: "deploy"
           target: "/tmp/crossposter-frontend/"
           overwrite: true
 
@@ -74,6 +87,11 @@ jobs:
               exit 1
             fi
 
+            if [ ! -f /tmp/crossposter-frontend/deploy/nginx/crossposter-site.conf ]; then
+              echo "ERROR: crossposter nginx config not found"
+              exit 1
+            fi
+
             sudo -n mkdir -p /var/www/crossposter
             # Keep previous hashed assets to avoid SPA blank-screen after deploy.
             sudo -n rsync -a --delete --exclude 'assets/' /tmp/crossposter-frontend/frontend/dist/ /var/www/crossposter/
@@ -82,6 +100,13 @@ jobs:
               sudo -n rsync -a /tmp/crossposter-frontend/frontend/dist/assets/ /var/www/crossposter/assets/
             fi
             sudo -n chown -R www-data:www-data /var/www/crossposter
+
+            sudo -n chmod +x /tmp/crossposter-frontend/deploy/scripts/setup-crossposter-letsencrypt.sh
+            sudo -n /tmp/crossposter-frontend/deploy/scripts/setup-crossposter-letsencrypt.sh
+
+            sudo -n cp /tmp/crossposter-frontend/deploy/nginx/crossposter-site.conf /etc/nginx/conf.d/crossposter-site.conf
+            sudo -n nginx -t
+            sudo -n systemctl reload nginx
 
             STATUS_CODE="$(curl --silent --insecure --output /dev/null --write-out '%{http_code}' \
               --resolve crossposter.aiengineerhelper.com:443:127.0.0.1 https://crossposter.aiengineerhelper.com/)"
