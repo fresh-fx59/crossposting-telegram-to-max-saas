@@ -1,11 +1,12 @@
 import { AppBar, Box, Button, Container, IconButton, Toolbar, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
-import { useLanguage, type Language } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { getStoredValue } from '../services/storage';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const token = localStorage.getItem('access_token');
+  const token = getStoredValue('access_token');
   const { language, setLanguage, t } = useLanguage();
 
   const handleLogout = async () => {

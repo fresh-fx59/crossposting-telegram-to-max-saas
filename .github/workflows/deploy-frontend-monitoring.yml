@@ -75,14 +75,18 @@ jobs:
             fi
 
             sudo -n mkdir -p /var/www/crossposter
-            sudo -n find /var/www/crossposter -mindepth 1 -delete
-            sudo -n cp -r /tmp/crossposter-frontend/frontend/dist/* /var/www/crossposter/
+            # Keep previous hashed assets to avoid SPA blank-screen after deploy.
+            sudo -n rsync -a --delete --exclude 'assets/' /tmp/crossposter-frontend/frontend/dist/ /var/www/crossposter/
+            if [ -d /tmp/crossposter-frontend/frontend/dist/assets ]; then
+              sudo -n mkdir -p /var/www/crossposter/assets
+              sudo -n rsync -a /tmp/crossposter-frontend/frontend/dist/assets/ /var/www/crossposter/assets/
+            fi
             sudo -n chown -R www-data:www-data /var/www/crossposter
 
-            STATUS_CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' \
-              -H 'Host: crossposter.aiengineerhelper.com' http://127.0.0.1/)"
-            if [ "${STATUS_CODE}" != "200" ] && [ "${STATUS_CODE}" != "301" ] && [ "${STATUS_CODE}" != "302" ]; then
-              echo "ERROR: monitoring frontend verification failed (status=${STATUS_CODE}, expected 200/301/302)"
+            STATUS_CODE="$(curl --silent --insecure --output /dev/null --write-out '%{http_code}' \
+              --resolve crossposter.aiengineerhelper.com:443:127.0.0.1 https://crossposter.aiengineerhelper.com/)"
+            if [ "${STATUS_CODE}" != "200" ]; then
+              echo "ERROR: monitoring frontend HTTPS verification failed (status=${STATUS_CODE}, expected 200)"
               exit 1
             fi
 

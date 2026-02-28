@@ -13,6 +13,7 @@ import {
 import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
+import { setStoredValue } from '../services/storage';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -57,7 +58,7 @@ export default function Login() {
 
     try {
       const result = await authApi.login(email, password, captchaToken || 'no-captcha');
-      localStorage.setItem('access_token', result.access_token);
+      setStoredValue('access_token', result.access_token);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || t.login.errors.loginFailed);

@@ -1,8 +1,9 @@
 /** API service for backend communication. */
 
 import axios, { AxiosError, type AxiosInstance } from 'axios';
+import { getStoredValue, removeStoredValue } from './storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -10,7 +11,7 @@ const api: AxiosInstance = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = getStoredValue('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -21,7 +22,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
+      removeStoredValue('access_token');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -107,7 +108,7 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
-    localStorage.removeItem('access_token');
+    removeStoredValue('access_token');
   },
 
   verifyEmail: async (token: string): Promise<{ message: string }> => {

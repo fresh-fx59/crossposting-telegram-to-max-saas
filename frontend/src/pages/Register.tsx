@@ -13,6 +13,7 @@ import {
 import Turnstile from 'react-turnstile';
 import { authApi } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
+import { setStoredValue } from '../services/storage';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -51,7 +52,7 @@ export default function Register() {
 
     try {
       const result = await authApi.register(email, password, captchaToken || 'no-captcha');
-      localStorage.setItem('access_token', result.access_token);
+      setStoredValue('access_token', result.access_token);
       setSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {

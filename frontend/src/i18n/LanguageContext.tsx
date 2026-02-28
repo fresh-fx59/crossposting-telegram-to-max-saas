@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import en, { type Translations } from './en';
 import ru from './ru';
+import { getStoredValue, setStoredValue } from '../services/storage';
 
 export type Language = 'ru' | 'en';
 
@@ -19,7 +20,7 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 function getInitialLanguage(): Language {
-  const stored = localStorage.getItem('language');
+  const stored = getStoredValue('language');
   if (stored === 'en' || stored === 'ru') return stored;
 
   // Detect from browser settings
@@ -35,7 +36,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
+    setStoredValue('language', lang);
     document.documentElement.lang = lang;
   }, []);
 

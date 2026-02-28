@@ -165,7 +165,7 @@ Required secrets:
 
 ### DNS / Cloudflare Setup
 
-- Add A record: `crossposter` -> your server IP (Proxied)
+- Add A record: `crossposter` -> monitoring server IP (`45.151.30.146`) as DNS-only
 - SSL/TLS mode: **Full** (not Full Strict, since we use self-signed origin certs)
 
 ### Key Files
