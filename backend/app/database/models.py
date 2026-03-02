@@ -9,6 +9,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -19,7 +20,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from .models import Connection, EmailVerificationToken, MaxChannel, Post, TelegramConnection  # noqa: F401, PLW0406
+    from .models import (  # noqa: F401, PLW0406
+        BillingEvent,
+        Connection,
+        EmailVerificationToken,
+        MaxChannel,
+        PaymentTransaction,
+        Post,
+        Subscription,
+        TelegramConnection,
+    )
 
 
 class User(Base, TimestampMixin):
@@ -52,6 +62,21 @@ class User(Base, TimestampMixin):
     )
     connections: Mapped[list["Connection"]] = relationship(
         "Connection",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    subscriptions: Mapped[list["Subscription"]] = relationship(
+        "Subscription",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    payment_transactions: Mapped[list["PaymentTransaction"]] = relationship(
+        "PaymentTransaction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    billing_events: Mapped[list["BillingEvent"]] = relationship(
+        "BillingEvent",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -217,3 +242,129 @@ class DailyPostCount(Base, TimestampMixin):
 
     # Relationships
     connection: Mapped["Connection"] = relationship("Connection", back_populates="daily_post_counts")
+
+
+class Subscription(Base, TimestampMixin):
+    """User subscription state for billing access control."""
+
+    __tablename__ = "subscriptions"
+    __table_args__ = (
+        Index("ix_subscriptions_user_id_status", "user_id", "status"),
+        Index("ix_subscriptions_provider_subscription_id", "provider_subscription_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    plan_code: Mapped[str] = mapped_column(String(64), nullable=False, default="trial")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="trial", index=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="robokassa")
+    provider_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    provider_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    grace_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="subscriptions")
+    payment_transactions: Mapped[list["PaymentTransaction"]] = relationship(
+        "PaymentTransaction",
+        back_populates="subscription",
+        cascade="all, delete-orphan",
+    )
+    billing_events: Mapped[list["BillingEvent"]] = relationship(
+        "BillingEvent",
+        back_populates="subscription",
+        cascade="all, delete-orphan",
+    )
+
+
+class PaymentTransaction(Base, TimestampMixin):
+    """Incoming and outgoing payment attempts and results."""
+
+    __tablename__ = "payment_transactions"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_payment_id", name="uq_payment_provider_id"),
+        Index("ix_payment_transactions_user_id_status", "user_id", "status"),
+        Index("ix_payment_transactions_provider_payment_id", "provider_payment_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    subscription_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="robokassa")
+    provider_payment_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="RUB")
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    raw_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="payment_transactions")
+    subscription: Mapped["Subscription | None"] = relationship(
+        "Subscription",
+        back_populates="payment_transactions",
+    )
+    billing_events: Mapped[list["BillingEvent"]] = relationship(
+        "BillingEvent",
+        back_populates="transaction",
+        cascade="all, delete-orphan",
+    )
+
+
+class BillingEvent(Base):
+    """Immutable audit trail for billing state transitions."""
+
+    __tablename__ = "billing_events"
+    __table_args__ = (
+        Index("ix_billing_events_user_id_occurred_at", "user_id", "occurred_at"),
+        Index("ix_billing_events_provider_event_id", "provider_event_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    subscription_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    transaction_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("payment_transactions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status_before: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    status_after: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    provider_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="billing_events")
+    subscription: Mapped["Subscription | None"] = relationship(
+        "Subscription",
+        back_populates="billing_events",
+    )
+    transaction: Mapped["PaymentTransaction | None"] = relationship(
+        "PaymentTransaction",
+        back_populates="billing_events",
+    )

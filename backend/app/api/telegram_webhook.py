@@ -8,8 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..config import settings
 from ..database import get_async_session
 from ..database.models import Connection, Post, TelegramConnection
+from ..services.billing_access import can_publish_with_billing_status
+from ..services.billing_service import get_current_subscription
 from ..services.limit_service import can_post_to_connection, increment_post_count
 from ..services.max_service import MaxServiceError, forward_channel_post_to_max
 
@@ -86,6 +89,32 @@ async def telegram_webhook(
     if not connections:
         logger.info("No active connections for Telegram channel %d", telegram_channel_id)
         return {"status": "ok", "processed": 0}
+
+    if settings.BILLING_ENFORCEMENT_ENABLED:
+        current_subscription = await get_current_subscription(session, tg_connection.user_id)
+        subscription_status = current_subscription.status if current_subscription else "none"
+        if not can_publish_with_billing_status(subscription_status):
+            reason = (
+                f"Billing access denied for status '{subscription_status}'. "
+                "Allowed statuses: active, grace."
+            )
+            logger.warning(
+                "Billing blocked publishing for user %d with status %s",
+                tg_connection.user_id,
+                subscription_status,
+            )
+            for connection in connections:
+                await _create_post_record(
+                    session,
+                    connection.id,
+                    channel_post.get("message_id"),
+                    None,
+                    _get_content_type(channel_post),
+                    "failed",
+                    reason,
+                )
+            await session.commit()
+            return {"status": "blocked", "processed": 0, "total": len(connections), "reason": reason}
 
     # Process each connection
     processed = 0

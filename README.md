@@ -129,6 +129,13 @@ Reference configs are in `traefik/` in this repo.
    # Expected: {"status":"healthy"}
    ```
 
+7. **Apply SQL migrations (manual, idempotent)**:
+   ```bash
+   docker compose -f docker-compose.prod.yml exec -T postgres \
+     psql -U crossposter -d crossposter \
+     < backend/migrations/20260302_001_billing_tables.sql
+   ```
+
 ### CI/CD (GitHub Actions)
 
 After the first manual deploy, subsequent deploys are automated. Push to `main` triggers `.github/workflows/deploy.yml` which SSHs into the server, runs `git pull`, and rebuilds containers.
@@ -223,6 +230,15 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 - API Docs: `https://YOUR_DOMAIN/api/docs`
 - Health: `https://YOUR_DOMAIN/health`
 - Traefik Dashboard: `http://SERVER_IP:8080` (not exposed publicly)
+
+### Billing Onboarding API (MVP)
+
+Authenticated endpoints for bot command flow:
+
+- `POST /api/billing/onboarding/start` -> initialize trial/onboarding
+- `GET /api/billing/onboarding/plans` -> list plans (`monthly`, `annual`)
+- `POST /api/billing/onboarding/pay` -> generate Robokassa payment URL
+- `GET /api/billing/onboarding/status` -> current status + activation checklist
 
 ## Project Structure
 

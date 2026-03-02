@@ -2,10 +2,13 @@
 
 from .base import Base
 from .models import (
+    BillingEvent,
     Connection,
     DailyPostCount,
     EmailVerificationToken,
     Post,
+    PaymentTransaction,
+    Subscription,
     TelegramConnection,
     User,
 )
@@ -19,6 +22,9 @@ __all__ = [
     "Connection",
     "Post",
     "DailyPostCount",
+    "Subscription",
+    "PaymentTransaction",
+    "BillingEvent",
     "get_async_session",
     "init_db",
     "close_db",

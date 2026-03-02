@@ -1,1 +1,1 @@
-Test package for Telegram Crossposter SaaS.
+"""Test package for Telegram Crossposter SaaS."""

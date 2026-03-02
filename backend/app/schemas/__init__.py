@@ -1,5 +1,5 @@
 """Pydantic schemas for API."""
 
-from . import auth, connection, post, user
+from . import auth, billing, connection, post, user
 
-__all__ = ["auth", "connection", "post", "user"]
+__all__ = ["auth", "billing", "connection", "post", "user"]

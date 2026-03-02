@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import settings
-from .api import auth, connections, telegram_webhook, users
+from .api import auth, billing, connections, telegram_webhook, users
 from .database import close_db, init_db
 
 
@@ -48,6 +48,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(billing.router, prefix="/api/billing", tags=["billing"])
 app.include_router(connections.router, prefix="/api/connections", tags=["connections"])
 app.include_router(telegram_webhook.router, prefix="/webhook", tags=["webhook"])
 

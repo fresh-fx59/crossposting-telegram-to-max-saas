@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Telegram Crossposter SaaS"
-    APP_VERSION: str = "1.0.3"
+    APP_VERSION: str = "1.0.4"
     ENV: Literal["development", "production", "test"] = "development"
 
     # Database
@@ -71,6 +71,12 @@ class Settings(BaseSettings):
 
     # Webhook
     WEBHOOK_BASE_URL: str = "http://localhost:8000"
+    ROBOKASSA_MERCHANT_LOGIN: str = ""
+    ROBOKASSA_PASSWORD_1: str = ""
+    ROBOKASSA_PASSWORD_2: str = ""
+    ROBOKASSA_TEST_MODE: bool = False
+    ROBOKASSA_PAYMENT_URL: str = "https://auth.robokassa.ru/Merchant/Index.aspx"
+    BILLING_ENFORCEMENT_ENABLED: bool = False
 
     @field_validator("FRONTEND_URL")
     @classmethod
