@@ -9,6 +9,7 @@ from .models import (
     Post,
     PaymentTransaction,
     Subscription,
+    TelegramUserLink,
     TelegramConnection,
     User,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "Subscription",
     "PaymentTransaction",
     "BillingEvent",
+    "TelegramUserLink",
     "get_async_session",
     "init_db",
     "close_db",

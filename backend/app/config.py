@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Telegram Crossposter SaaS"
-    APP_VERSION: str = "1.0.4"
+    APP_VERSION: str = "1.0.5"
     ENV: Literal["development", "production", "test"] = "development"
 
     # Database
@@ -71,6 +71,8 @@ class Settings(BaseSettings):
 
     # Webhook
     WEBHOOK_BASE_URL: str = "http://localhost:8000"
+    TELEGRAM_BOT_API_TOKEN: str = ""
+    TELEGRAM_COMMAND_WEBHOOK_SECRET: str = ""
     ROBOKASSA_MERCHANT_LOGIN: str = ""
     ROBOKASSA_PASSWORD_1: str = ""
     ROBOKASSA_PASSWORD_2: str = ""

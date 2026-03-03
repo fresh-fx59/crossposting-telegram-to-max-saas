@@ -134,6 +134,10 @@ Reference configs are in `traefik/` in this repo.
    docker compose -f docker-compose.prod.yml exec -T postgres \
      psql -U crossposter -d crossposter \
      < backend/migrations/20260302_001_billing_tables.sql
+
+   docker compose -f docker-compose.prod.yml exec -T postgres \
+     psql -U crossposter -d crossposter \
+     < backend/migrations/20260303_001_telegram_user_links.sql
    ```
 
 ### CI/CD (GitHub Actions)
@@ -200,6 +204,8 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `CLOUDFLARE_TURNSTILE_SITE_KEY` | Turnstile captcha client key (baked into frontend at build time, rebuild frontend to change) |
 | `FRONTEND_URL` | Public URL (e.g., `https://crossposter.aiengineerhelper.com`) |
 | `WEBHOOK_BASE_URL` | Same as FRONTEND_URL (Telegram webhook target) |
+| `TELEGRAM_BOT_API_TOKEN` | Bot token used to reply to onboarding commands |
+| `TELEGRAM_COMMAND_WEBHOOK_SECRET` | Secret path segment for bot command webhook |
 
 ### Troubleshooting
 
@@ -239,6 +245,24 @@ Authenticated endpoints for bot command flow:
 - `GET /api/billing/onboarding/plans` -> list plans (`monthly`, `annual`)
 - `POST /api/billing/onboarding/pay` -> generate Robokassa payment URL
 - `GET /api/billing/onboarding/status` -> current status + activation checklist
+
+### Telegram Bot Command Webhook (MVP)
+
+Endpoint:
+- `POST /webhook/bot/{TELEGRAM_COMMAND_WEBHOOK_SECRET}`
+
+Supported commands:
+- `/start` -> bot help and next actions
+- `/plans` -> list available plans
+- `/link <jwt_token>` -> link Telegram account to existing web account
+- `/status` -> show billing status
+- `/pay [monthly|annual]` -> generate Robokassa payment URL
+
+Webhook setup:
+```bash
+curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_API_TOKEN}/setWebhook" \
+  -d "url=https://crossposter.aiengineerhelper.com/webhook/bot/${TELEGRAM_COMMAND_WEBHOOK_SECRET}"
+```
 
 ## Project Structure
 

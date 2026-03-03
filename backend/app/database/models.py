@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         PaymentTransaction,
         Post,
         Subscription,
+        TelegramUserLink,
         TelegramConnection,
     )
 
@@ -80,6 +81,36 @@ class User(Base, TimestampMixin):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    telegram_user_link: Mapped["TelegramUserLink | None"] = relationship(
+        "TelegramUserLink",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class TelegramUserLink(Base, TimestampMixin):
+    """Link between Telegram user and platform user."""
+
+    __tablename__ = "telegram_user_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    telegram_user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="telegram_user_link")
 
 
 class EmailVerificationToken(Base, TimestampMixin):
