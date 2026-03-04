@@ -58,36 +58,48 @@ export default function Landing() {
         sx={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
-          py: { xs: 8, md: 12 },
+          py: { xs: 6, md: 12 },
           textAlign: 'center',
         }}
       >
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ px: { xs: 2, sm: 3 } }}>
           <Typography
             variant="h2"
             component="h1"
             gutterBottom
             fontWeight="bold"
-            sx={{ fontSize: { xs: '2rem', md: '3rem' } }}
+            sx={{ fontSize: { xs: '1.65rem', sm: '2rem', md: '3rem' }, lineHeight: 1.15 }}
           >
             {t.landing.heroTitle}
           </Typography>
 
           <Typography
             variant="h5"
-            sx={{ opacity: 0.95, mb: 2, fontSize: { xs: '1.1rem', md: '1.4rem' } }}
+            sx={{ opacity: 0.95, mb: 2, fontSize: { xs: '1rem', sm: '1.1rem', md: '1.4rem' } }}
           >
             {t.landing.heroSubtitle}
           </Typography>
 
           <Typography
             variant="body1"
-            sx={{ mb: 5, opacity: 0.85, fontSize: '1.05rem', maxWidth: 520, mx: 'auto' }}
+            sx={{
+              mb: 4,
+              opacity: 0.9,
+              fontSize: { xs: '0.95rem', sm: '1.05rem' },
+              maxWidth: 560,
+              mx: 'auto',
+            }}
           >
             {t.landing.heroDescription}
           </Typography>
 
-          <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            justifyContent="center"
+            alignItems="center"
+            sx={{ maxWidth: { xs: 320, sm: 'none' }, mx: 'auto' }}
+          >
             <Button
               component={RouterLink}
               to="/register"
@@ -100,6 +112,7 @@ export default function Landing() {
                 '&:hover': { bgcolor: 'grey.100' },
                 px: 4,
                 py: 1.5,
+                width: { xs: '100%', sm: 'auto' },
               }}
             >
               {t.landing.getStarted}
@@ -116,6 +129,7 @@ export default function Landing() {
                 '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
                 px: 4,
                 py: 1.5,
+                width: { xs: '100%', sm: 'auto' },
               }}
             >
               {t.landing.login}
@@ -126,13 +140,13 @@ export default function Landing() {
 
       {/* Features */}
       <Box sx={{ flexGrow: 1, py: { xs: 6, md: 10 }, bgcolor: 'grey.50' }}>
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
           <Typography
             variant="h4"
             component="h2"
             textAlign="center"
             fontWeight="bold"
-            sx={{ mb: 6 }}
+            sx={{ mb: { xs: 4, md: 6 }, fontSize: { xs: '1.5rem', sm: '2rem' } }}
           >
             {t.landing.featuresTitle}
           </Typography>
@@ -149,6 +163,7 @@ export default function Landing() {
                     border: '1px solid',
                     borderColor: 'grey.200',
                     borderRadius: 2,
+                    overflowWrap: 'anywhere',
                   }}
                 >
                   <f.icon sx={{ fontSize: 40, color: 'primary.main', mb: 1.5 }} />
@@ -166,17 +181,21 @@ export default function Landing() {
       </Box>
 
       {/* Footer */}
-      <Box component="footer" sx={{ py: 3, textAlign: 'center', bgcolor: 'grey.100' }}>
+      <Box component="footer" sx={{ py: 3, textAlign: 'center', bgcolor: 'grey.100', px: 2 }}>
         <Typography variant="body2" color="text.secondary">
           &copy; {new Date().getFullYear()} {t.landing.footer}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}
+        >
           {t.landing.contact}{' '}
           <a
             href="https://t.me/alex_444"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: '#0088cc', textDecoration: 'none' }}
+            style={{ color: '#0088cc', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
           >
             <TelegramIcon sx={{ fontSize: 16, verticalAlign: 'middle', mr: 0.5 }} />
             @alex_444
